@@ -24,7 +24,7 @@ jobs:
     steps:
       # 检出代码
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 设置Docker Buildx
       - name: Set up Docker Buildx
