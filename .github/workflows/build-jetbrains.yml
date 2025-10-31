@@ -1,0 +1,69 @@
+name: Build JetBrains Image
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'jetbrains/**'
+      - '.github/workflows/build-jetbrains.yml'
+
+env:
+  REGISTRY: ghcr.io/ysicing/gitspace-runtime
+  TIMESTAMP: ${{ github.run_id }}
+
+jobs:
+  build-and-push:
+    name: Build and Push JetBrains Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 设置Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 登录到 ghcr.io
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 构建并推送JetBrains镜像
+      - name: Build and push JetBrains image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./jetbrains/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }}
+            ${{ env.REGISTRY }}:jetbrains-latest
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 显示镜像信息
+      - name: Show Image Info
+        run: |
+          echo "================================"
+          echo "✓ JetBrains 镜像构建并推送完成!"
+          echo "================================"
+          echo "Registry: ${{ env.REGISTRY }}"
+          echo "镜像标签: ${{ env.TIMESTAMP }}"
+          echo ""
+          echo "镜像地址:"
+          echo "  - ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }}"
+          echo "  - ${{ env.REGISTRY }}:jetbrains-latest"
+          echo ""
+          echo "测试命令:"
+          echo "  docker run --rm ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }} java -version"
