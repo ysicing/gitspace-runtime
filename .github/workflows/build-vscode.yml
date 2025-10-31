@@ -44,12 +44,12 @@ jobs:
         with:
           context: .
           file: ./vscode/Dockerfile
+          pull: true
           push: true
           tags: |
             ${{ env.REGISTRY }}:vscode-${{ env.TIMESTAMP }}
             ${{ env.REGISTRY }}:vscode-latest
           build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }}
             VSCODE_EXTENSIONS=${{ env.VSCODE_EXTENSIONS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

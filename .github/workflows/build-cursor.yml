@@ -45,12 +45,12 @@ jobs:
         with:
           context: .
           file: ./cursor/Dockerfile
+          pull: true
           push: true
           tags: |
             ${{ env.REGISTRY }}:cursor-${{ env.TIMESTAMP }}
             ${{ env.REGISTRY }}:cursor-latest
           build-args: |
-            VSCODE_IMAGE=${{ env.REGISTRY }}:vscode-${{ env.TIMESTAMP }}
             VSCODE_EXTENSIONS=${{ env.VSCODE_EXTENSIONS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

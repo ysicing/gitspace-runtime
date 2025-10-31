@@ -43,12 +43,11 @@ jobs:
         with:
           context: .
           file: ./jetbrains/Dockerfile
+          pull: true
           push: true
           tags: |
             ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }}
             ${{ env.REGISTRY }}:jetbrains-latest
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

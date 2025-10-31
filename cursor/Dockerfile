@@ -9,8 +9,7 @@
 # Gitspace Cursor/Windsurf 专用镜像
 # 基于 VSCode 镜像（Cursor 和 Windsurf 基于 VSCode）
 
-ARG VSCODE_IMAGE=ttl.sh/ysicing/gitspace-runtime:vscode-latest
-FROM ${VSCODE_IMAGE}
+FROM ghcr.io/ysicing/gitspace-runtime:vscode-latest
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace Cursor/Windsurf image"

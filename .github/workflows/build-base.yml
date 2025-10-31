@@ -46,7 +46,6 @@ jobs:
           pull: true
           push: true
           tags: |
-            ${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }}
             ${{ env.REGISTRY }}:base-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -61,8 +60,7 @@ jobs:
           echo "镜像标签: ${{ env.TIMESTAMP }}"
           echo ""
           echo "镜像地址:"
-          echo "  - ${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }}"
           echo "  - ${{ env.REGISTRY }}:base-latest"
           echo ""
           echo "测试命令:"
-          echo "  docker run --rm ${{ env.REGISTRY }}:base-${{ env.TIMESTAMP }} which git"
+          echo "  docker run --rm ${{ env.REGISTRY }}:base-latest which git"
