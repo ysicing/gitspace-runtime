@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitspace-demo
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitspace-cursor-pvc
+  namespace: gitspace-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitspace-cursor
+  namespace: gitspace-demo
+  labels:
+    app: gitspace
+    ide: cursor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitspace
+      ide: cursor
+  template:
+    metadata:
+      labels:
+        app: gitspace
+        ide: cursor
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      initContainers:
+      - name: gitspace-init
+        image: gitness/gitspace:cursor-latest
+        command: ["/usr/local/bin/gitspace-init.sh"]
+        env:
+        - name: WORKSPACE_DIR
+          value: "/workspace"
+        - name: REPO_NAME
+          value: "my-repo"
+        - name: REPO_URL
+          value: "https://github.com/example/my-repo.git"
+        - name: REPO_BRANCH
+          value: "main"
+        - name: GIT_USERNAME
+          value: "gituser"
+        - name: GIT_PASSWORD
+          value: "your-git-token"
+        - name: IDE_TYPE
+          value: "cursor"
+        - name: IDE_PORT
+          value: "8089"
+        - name: GITSPACE_IDENTIFIER
+          value: "gitspace-cursor-demo"
+        # Cursor 专用配置（可选）
+        - name: CURSOR_EXTENSIONS
+          value: "dbaeumer.vscode-eslint,esbenp.prettier-vscode"  # 可选：扩展列表
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: shared
+          mountPath: /shared
+
+      containers:
+      - name: cursor-ide
+        image: gitness/gitspace:cursor-latest
+        command: ["/bin/bash", "/shared/start.sh"]
+        ports:
+        - containerPort: 8089
+          name: ide
+          protocol: TCP
+        env:
+        - name: HOME
+          value: "/home/vscode"
+        - name: WORKSPACE_DIR
+          value: "/workspace"
+        - name: REPO_NAME
+          value: "my-repo"
+        - name: IDE_PORT
+          value: "8089"
+        - name: IDE_TYPE
+          value: "cursor"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: shared
+          mountPath: /shared
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: gitspace-cursor-pvc
+      - name: shared
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitspace-cursor
+  namespace: gitspace-demo
+spec:
+  selector:
+    app: gitspace
+    ide: cursor
+  ports:
+  - name: ide
+    port: 8089
+    targetPort: 8089
+    protocol: TCP
+  type: LoadBalancer
+
+---
+# 可选：Ingress 配置
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: gitspace-cursor
+#   namespace: gitspace-demo
+#   annotations:
+#     kubernetes.io/ingress.class: nginx
+# spec:
+#   rules:
+#   - host: cursor.gitspace.example.com
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: gitspace-cursor
+#             port:
+#               number: 8089

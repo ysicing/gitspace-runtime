@@ -1,0 +1,103 @@
+version: '3'
+
+vars:
+  # 镜像仓库选择 (ttl.sh/ysicing/gitspace-runtime 或 ghcr.io/ysicing/gitspace-runtime)
+  REGISTRY: ghcr.io/ysicing/gitspace-runtime
+  TIMESTAMP: "{{ now | date \"20060102-150405\" }}"
+  IMAGE_TAG: "{{ .TIMESTAMP }}"
+  CONTEXT: .
+  # VSCode 扩展列表（默认预装扩展）
+  VSCODE_EXTENSIONS: "ms-python.python,ms-vscode.vscode-typescript-next,esbenp.prettier-vscode,ms-vscode.vscode-json"
+
+tasks:
+  # 显示项目信息
+  info:
+    desc: 显示项目信息
+    cmds:
+      - echo "Gitspace Runtime - 多镜像构建工具"
+      - 'echo "Registry: {{ .REGISTRY }}"'
+      - 'echo "镜像标签: {{ .IMAGE_TAG }}"'
+      - 'echo "VSCode扩展: {{ .VSCODE_EXTENSIONS }}"'
+
+  # 构建单个镜像
+  build-image:
+    desc: 构建单个镜像
+    vars:
+      IMAGE:
+    cmds:
+      - |
+        echo "构建 {{ .IMAGE }} 镜像..."
+        docker build \
+          -t {{ .REGISTRY }}:{{ .IMAGE }}-{{ .IMAGE_TAG }} \
+          -f {{ .IMAGE }}/Dockerfile \
+          {{ if eq .IMAGE "vscode" }}--build-arg BASE_IMAGE={{ .REGISTRY }}:base-{{ .IMAGE_TAG }} --build-arg VSCODE_EXTENSIONS="{{ .VSCODE_EXTENSIONS }}"{{ end }} \
+          {{ if eq .IMAGE "jetbrains" }}--build-arg BASE_IMAGE={{ .REGISTRY }}:base-{{ .IMAGE_TAG }}{{ end }} \
+          {{ if eq .IMAGE "cursor" }}--build-arg VSCODE_IMAGE={{ .REGISTRY }}:vscode-{{ .IMAGE_TAG }}{{ end }} \
+          {{ .CONTEXT }}
+        echo "✓ {{ .IMAGE }} 镜像构建完成: {{ .REGISTRY }}:{{ .IMAGE }}-{{ .IMAGE_TAG }}"
+
+  # 构建所有镜像（VSCode默认包含扩展）
+  build-all:
+    desc: 构建所有镜像（VSCode默认包含扩展）
+    deps: [build-base, build-vscode, build-jetbrains, build-cursor]
+    cmds:
+      - echo "================================"
+      - echo "✓ 所有镜像构建完成!"
+      - echo "================================"
+
+  # 构建所有镜像（包含自定义扩展的VSCode）
+  build-all-with-extensions:
+    desc: 构建所有镜像（含自定义扩展的VSCode）
+    deps: [build-base, build-vscode-with-extensions, build-jetbrains, build-cursor]
+    cmds:
+      - echo "================================"
+      - echo "✓ 所有镜像构建完成（含VSCode插件）!"
+      - echo "================================"
+
+  # 构建基础镜像
+  build-base:
+    desc: 构建基础镜像
+    cmds:
+      - task: build-image
+        vars:
+          IMAGE: base
+
+  # 构建VSCode镜像（默认包含扩展）
+  build-vscode:
+    desc: 构建VSCode镜像（默认包含扩展）
+    deps: [build-base]
+    cmds:
+      - task: build-image
+        vars:
+          IMAGE: vscode
+      - 'echo "✓ 预装插件: {{ .VSCODE_EXTENSIONS }}"'
+
+  # 构建自定义扩展的VSCode镜像
+  build-vscode-with-extensions:
+    desc: 构建自定义扩展的VSCode镜像
+    deps: [build-base]
+    vars:
+      VSCODE_EXTENSIONS: "ms-python.python,ms-vscode.vscode-typescript-next,esbenp.prettier-vscode,ms-vscode.vscode-json"
+    cmds:
+      - task: build-image
+        vars:
+          IMAGE: vscode
+      - 'echo "✓ 预装插件: {{ .VSCODE_EXTENSIONS }}"'
+
+  # 构建JetBrains镜像
+  build-jetbrains:
+    desc: 构建JetBrains镜像
+    deps: [build-base]
+    cmds:
+      - task: build-image
+        vars:
+          IMAGE: jetbrains
+
+  # 构建Cursor镜像
+  build-cursor:
+    desc: 构建Cursor镜像
+    deps: [build-vscode]
+    cmds:
+      - task: build-image
+        vars:
+          IMAGE: cursor
