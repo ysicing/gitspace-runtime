@@ -9,9 +9,9 @@
 # Gitspace VSCode 专用镜像
 # 基于 base 镜像，添加 VSCode Server 支持
 
-ARG BASE_IMAGE=ttl.sh/ysicing/gitspace-runtime:base-latest
+FROM ghcr.io/ysicing/gitspace-runtime:base-latest
+
 ARG VSCODE_EXTENSIONS=""
-FROM ${BASE_IMAGE}
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace VSCode Web image with code-server support"

@@ -9,8 +9,7 @@
 # Gitspace JetBrains 专用镜像
 # 基于 base 镜像，添加 JetBrains IDE 支持（IntelliJ/PyCharm/GoLand 等）
 
-ARG BASE_IMAGE=ttl.sh/ysicing/gitspace-runtime:base-latest
-FROM ${BASE_IMAGE}
+FROM ghcr.io/ysicing/gitspace-runtime:base-latest
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace JetBrains image with remote-dev-server support"
