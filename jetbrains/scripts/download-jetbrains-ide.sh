@@ -77,11 +77,43 @@ download_jetbrains_ide() {
     local ide_dir="${JETBRAINS_IDE_DIR:-$HOME/.jetbrains-ide}"
     local tmp_dir="${TMP_DOWNLOAD_DIR:-/tmp/jetbrains-download}"
 
-    # 检查是否已安装
+    # ✅ 检查是否已经预装了 IDE（镜像构建时安装）
     if [ -d "$ide_dir" ] && [ -f "$ide_dir/bin/remote-dev-server.sh" ]; then
-        log_info "JetBrains IDE already installed at $ide_dir"
+        # 验证产品信息
+        if [ -f "$ide_dir/product-info.json" ]; then
+            local product_name
+            local product_version
+            product_name=$(jq -r '.name // "Unknown"' "$ide_dir/product-info.json" 2>/dev/null || echo "Unknown")
+            product_version=$(jq -r '.version // "Unknown"' "$ide_dir/product-info.json" 2>/dev/null || echo "Unknown")
+            log_info "✓ JetBrains IDE pre-installed in image: $product_name $product_version"
+        else
+            log_info "✓ JetBrains IDE pre-installed at $ide_dir"
+        fi
+
+        # 检查 IDE_TYPE 是否匹配预装的 IDE
+        local ide_type="${IDE_TYPE:-intellij}"
+        if [ -f "$ide_dir/product-info.json" ]; then
+            local product_code
+            product_code=$(jq -r '.productCode // ""' "$ide_dir/product-info.json" 2>/dev/null || echo "")
+
+            # 简单匹配检查（IntelliJ IDEA 产品代码: IIU, IC）
+            case "$ide_type" in
+                intellij|intellij-idea)
+                    if [[ "$product_code" =~ ^I[IU|C] ]]; then
+                        log_info "✓ Pre-installed IDE matches requested type: $ide_type"
+                        return 0
+                    fi
+                    ;;
+            esac
+        fi
+
+        # 如果不匹配或无法确定，记录警告但继续使用
+        log_info "Note: Pre-installed IDE will be used (IDE_TYPE=$ide_type)"
         return 0
     fi
+
+    # ❌ 如果没有预装 IDE，则运行时下载（回退策略）
+    log_info "IDE not found in image, downloading at runtime..."
 
     # 获取下载 URL
     local download_url

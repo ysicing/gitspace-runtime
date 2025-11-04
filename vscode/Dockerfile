@@ -30,6 +30,12 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# ✅ 预装 code-server（在镜像构建时安装最新版，避免运行时下载）
+RUN echo "Installing latest code-server..." \
+    && curl -fsSL https://code-server.dev/install.sh | sh \
+    && code-server --version \
+    && echo "✓ code-server pre-installed successfully"
+
 # 复制 VSCode 专用脚本
 COPY vscode/scripts/*.sh /usr/local/gitspace/scripts/vscode/
 RUN chmod +x /usr/local/gitspace/scripts/vscode/*.sh

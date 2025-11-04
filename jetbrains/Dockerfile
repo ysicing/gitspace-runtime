@@ -39,8 +39,24 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /home/vscode/.cache/JetBrains \
     /home/vscode/.config/JetBrains \
     /home/vscode/.local/share/JetBrains \
+    /home/vscode/.jetbrains-ide \
     /tmp/jetbrains-download \
-    && chown -R vscode:vscode /home/vscode/.cache /home/vscode/.config /home/vscode/.local /tmp/jetbrains-download
+    && chown -R vscode:vscode /home/vscode/.cache /home/vscode/.config /home/vscode/.local /home/vscode/.jetbrains-ide /tmp/jetbrains-download
+
+# ✅ 预装 JetBrains IDE（默认安装 IntelliJ IDEA，构建时安装避免运行时下载）
+# 注意：镜像会增加约 1GB，但可以显著减少启动时间
+RUN echo "Downloading and installing latest IntelliJ IDEA Ultimate..." \
+    && ARCH=$(case "$(uname -m)" in arm*|aarch64) echo "linuxARM64" ;; *) echo "linux" ;; esac) \
+    && DOWNLOAD_URL="https://download.jetbrains.com/idea/ideaIU-latest-${ARCH}.tar.gz" \
+    && echo "Download URL: ${DOWNLOAD_URL}" \
+    && curl -L --progress-bar -o /tmp/jetbrains-ide.tar.gz "${DOWNLOAD_URL}" \
+    && echo "Extracting IDE..." \
+    && tar -xzf /tmp/jetbrains-ide.tar.gz -C /home/vscode/.jetbrains-ide --strip-components=1 \
+    && rm -f /tmp/jetbrains-ide.tar.gz \
+    && chmod +x /home/vscode/.jetbrains-ide/bin/*.sh \
+    && chown -R vscode:vscode /home/vscode/.jetbrains-ide \
+    && echo "✓ IntelliJ IDEA pre-installed successfully" \
+    && ls -lh /home/vscode/.jetbrains-ide/bin/remote-dev-server.sh
 
 # 复制 JetBrains 专用脚本
 COPY jetbrains/scripts/*.sh /usr/local/gitspace/scripts/jetbrains/
