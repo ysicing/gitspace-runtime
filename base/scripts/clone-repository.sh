@@ -10,7 +10,18 @@ clone_repository() {
     local repo_url="${REPO_URL:-}"
     local branch="${BRANCH:-main}"
     local repo_name="${REPO_NAME:-}"
-    local workspace_dir="${WORKSPACE_DIR:-/workspace}"
+
+    # 对齐 Docker Gitspace: 优先使用 HOME 目录
+    local workspace_dir="${HOME:-/home/vscode}"
+
+    # 向后兼容: 如果设置了 WORKSPACE_DIR, 使用它 (但打印警告)
+    if [ -n "${WORKSPACE_DIR:-}" ]; then
+        if [ "$WORKSPACE_DIR" != "$workspace_dir" ]; then
+            log_info "⚠️  Using WORKSPACE_DIR=$WORKSPACE_DIR (deprecated, recommend using HOME)"
+        fi
+        workspace_dir="$WORKSPACE_DIR"
+    fi
+
     local repo_dir="$workspace_dir/$repo_name"
 
     if [ -z "$repo_url" ] || [ -z "$repo_name" ]; then
@@ -22,7 +33,24 @@ clone_repository() {
     log_info "Cloning repository: $repo_url"
     log_info "Branch: $branch"
     log_info "Target directory: $repo_dir"
+    log_info "HOME: $HOME"
     log_info "=========================================="
+
+    # 确保 workspace 目录存在且有正确的权限
+    if [ ! -d "$workspace_dir" ]; then
+        log_info "Creating workspace directory: $workspace_dir"
+        sudo mkdir -p "$workspace_dir" || mkdir -p "$workspace_dir"
+    fi
+
+    # 修复权限（使用当前用户）
+    current_user=$(id -u)
+    current_group=$(id -g)
+    workspace_owner=$(stat -c '%u' "$workspace_dir" 2>/dev/null || stat -f '%u' "$workspace_dir" 2>/dev/null || echo "0")
+
+    if [ "$workspace_owner" != "$current_user" ]; then
+        log_info "Fixing workspace permissions (current owner: $workspace_owner, expected: $current_user)"
+        sudo chown -R "$current_user:$current_group" "$workspace_dir" 2>/dev/null || true
+    fi
 
     # 打印最新 commit SHA（与 Docker 实现对齐）
     log_info "Fetching latest commit SHA from remote..."

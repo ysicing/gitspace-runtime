@@ -7,7 +7,7 @@ set -euo pipefail
 # ========================================
 # 环境变量
 # ========================================
-WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+WORKSPACE_DIR="${WORKSPACE_DIR:-/workspaces}"
 REPO_NAME="${REPO_NAME:-}"
 REPO_DIR="$WORKSPACE_DIR/$REPO_NAME"
 IDE_TYPE="${IDE_TYPE:-cursor}"

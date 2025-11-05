@@ -59,15 +59,24 @@ RUN git config --system core.autocrlf input \
     && git config --system init.defaultBranch main
 
 # 创建标准目录结构
-RUN mkdir -p /workspace \
-    /home/vscode/.config \
+# 重要: 挂载点在 HOME 目录,与 Docker Gitspace 对齐
+RUN mkdir -p /home/vscode/.config \
     /home/vscode/.local \
     /shared \
     /usr/local/gitspace/scripts/common \
-    && chown -R vscode:vscode /workspace /home/vscode /shared
+    /usr/local/gitspace/scripts/vscode \
+    /usr/local/gitspace/scripts/cursor \
+    /usr/local/gitspace/scripts/jetbrains \
+    && chown -R vscode:vscode /home/vscode /shared \
+    && ln -s /home/vscode /workspaces
 
-# 复制通用脚本
+# 复制通用脚本 (现有的统一脚本)
 COPY base/scripts/*.sh /usr/local/gitspace/scripts/common/
+
+# 复制 Docker Gitspace 原始脚本
+COPY base/scripts/docker-gitspace/*.sh /usr/local/gitspace/scripts/common/
+
+# 设置脚本执行权限
 RUN chmod +x /usr/local/gitspace/scripts/common/*.sh
 
 # 设置环境变量
@@ -76,7 +85,7 @@ ENV PATH=$PATH:/usr/local/gitspace/scripts/common
 
 # 切换到非 root 用户
 USER vscode
-WORKDIR /workspace
+WORKDIR /home/vscode
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

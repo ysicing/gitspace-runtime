@@ -7,11 +7,17 @@ set -euo pipefail
 # ========================================
 # 环境变量
 # ========================================
-WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+# 对齐 Docker Gitspace: 使用 HOME 目录而不是 WORKSPACE_DIR
+HOME_DIR="${HOME:-/home/vscode}"
 REPO_NAME="${REPO_NAME:-}"
-REPO_DIR="$WORKSPACE_DIR/$REPO_NAME"
+REPO_DIR="$HOME_DIR/$REPO_NAME"
 IDE_PORT="${IDE_PORT:-8089}"
 GITSPACE_IDENTIFIER="${GITSPACE_IDENTIFIER:-gitspace}"
+
+# 向后兼容: 如果设置了 WORKSPACE_DIR, 打印警告
+if [ -n "${WORKSPACE_DIR:-}" ] && [ "$WORKSPACE_DIR" != "$HOME_DIR" ]; then
+    echo "[WARN] WORKSPACE_DIR is deprecated. Using HOME=$HOME_DIR for Docker Gitspace compatibility"
+fi
 
 # ========================================
 # 日志函数
@@ -66,20 +72,26 @@ generate_start_script() {
 #!/bin/bash
 set -e
 
-# 加载环境变量
-export HOME=/home/vscode
-export WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+# 加载环境变量 (对齐 Docker Gitspace)
+export HOME="${HOME:-/home/vscode}"
 export REPO_NAME="${REPO_NAME:-}"
 export IDE_PORT="${IDE_PORT:-8089}"
 
 log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
 
 log_info "Starting VSCode Server..."
-log_info "Workspace: $WORKSPACE_DIR/$REPO_NAME"
+log_info "HOME: $HOME"
+log_info "Repository: $HOME/$REPO_NAME"
 log_info "Port: $IDE_PORT"
 
-# 进入工作目录
-cd "$WORKSPACE_DIR/$REPO_NAME" || cd "$HOME"
+# 进入工作目录 (优先使用仓库目录, 否则使用 HOME)
+if [ -n "$REPO_NAME" ] && [ -d "$HOME/$REPO_NAME" ]; then
+    cd "$HOME/$REPO_NAME"
+    log_info "Working directory: $HOME/$REPO_NAME"
+else
+    cd "$HOME"
+    log_info "Working directory: $HOME"
+fi
 
 # 配置目录
 config_dir="$HOME/.config/code-server"
@@ -94,7 +106,11 @@ CONFIG_EOF
 
 # 启动 code-server
 log_info "Launching code-server..."
-exec code-server --disable-workspace-trust "$WORKSPACE_DIR/$REPO_NAME"
+if [ -n "$REPO_NAME" ] && [ -d "$HOME/$REPO_NAME" ]; then
+    exec code-server --disable-workspace-trust "$HOME/$REPO_NAME"
+else
+    exec code-server --disable-workspace-trust "$HOME"
+fi
 EOF
 
     chmod +x /shared/start.sh

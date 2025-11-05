@@ -38,17 +38,80 @@ spec:
         ide: vscode
     spec:
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
+        # Pod 级别安全上下文
+        # fsGroup 确保挂载的卷文件属于此组
         fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
 
       initContainers:
+      # InitContainer 1: 用户检测和配置
+      - name: detect-user
+        image: gitness/gitspace:vscode-latest
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+
+            # 检测用户配置 (当前使用默认值, 后续可集成 devcontainer.json 检测)
+            echo "export CONTAINER_USER='vscode'" > /shared/user-config.env
+            echo "export REMOTE_USER='vscode'" >> /shared/user-config.env
+            echo "export USER_UID='1000'" >> /shared/user-config.env
+            echo "export USER_GID='1000'" >> /shared/user-config.env
+            echo "export HOME_DIR='/home/vscode'" >> /shared/user-config.env
+
+            echo "[INFO] User configuration:"
+            cat /shared/user-config.env
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+
+      # InitContainer 2: 用户创建和环境初始化
       - name: gitspace-init
         image: gitness/gitspace:vscode-latest
-        command: ["/usr/local/bin/gitspace-init.sh"]
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+
+            # 加载用户配置
+            source /shared/user-config.env
+
+            # 创建用户 (如果需要)
+            if [ -f /usr/local/gitspace/scripts/create-user-dynamic.sh ]; then
+              source /usr/local/gitspace/scripts/create-user-dynamic.sh
+              create_or_update_user "$CONTAINER_USER" "$USER_UID" "$USER_GID" "$HOME_DIR" || true
+            fi
+
+            # 数据迁移: 如果检测到旧的 /workspaces 结构, 迁移到 HOME
+            if [ -d /mnt/home/workspaces ] && [ ! -L /mnt/home/workspaces ]; then
+              echo "[MIGRATE] 检测到旧的 /workspaces 挂载, 开始迁移到 $HOME_DIR ..."
+              for item in /mnt/home/workspaces/*; do
+                if [ -e "$item" ]; then
+                  item_name=$(basename "$item")
+                  echo "[MIGRATE]   移动: $item -> $HOME_DIR/$item_name"
+                  mv "$item" "$HOME_DIR/" 2>/dev/null || cp -rp "$item" "$HOME_DIR/" || true
+                fi
+              done
+              rm -rf /mnt/home/workspaces 2>/dev/null || true
+              echo "[MIGRATE] 迁移完成"
+            fi
+
+            # 创建向后兼容的符号链接 /workspaces -> $HOME_DIR
+            if [ ! -e /mnt/home/workspaces ]; then
+              ln -s "$HOME_DIR" /mnt/home/workspaces || true
+              echo "[INFO] 创建符号链接: /workspaces -> $HOME_DIR (向后兼容)"
+            fi
+
+            # 确保 HOME 目录权限正确
+            chown -R "$USER_UID:$USER_GID" "$HOME_DIR" 2>/dev/null || true
+
+            # 执行标准初始化脚本
+            /usr/local/bin/gitspace-init.sh
         env:
-        - name: WORKSPACE_DIR
-          value: "/workspace"
+        - name: HOME
+          value: "/home/vscode"
+        - name: USER
+          value: "vscode"
         - name: REPO_NAME
           value: "my-repo"
         - name: REPO_URL
@@ -67,12 +130,14 @@ spec:
           value: "gitspace-vscode-demo"
         # VSCode 专用配置（可选）
         - name: VSCODE_EXTENSIONS
-          value: "dbaeumer.vscode-eslint,esbenp.prettier-vscode,golang.go"  # 可选：扩展列表
+          value: "dbaeumer.vscode-eslint,esbenp.prettier-vscode,golang.go"
         volumeMounts:
-        - name: workspace
-          mountPath: /workspace
+        - name: home
+          mountPath: /mnt/home  # InitContainer 使用临时挂载点
         - name: shared
           mountPath: /shared
+        securityContext:
+          runAsUser: 0  # InitContainer 需要 root 权限创建用户和修复权限
 
       containers:
       - name: vscode-ide
@@ -85,8 +150,8 @@ spec:
         env:
         - name: HOME
           value: "/home/vscode"
-        - name: WORKSPACE_DIR
-          value: "/workspace"
+        - name: USER
+          value: "vscode"
         - name: REPO_NAME
           value: "my-repo"
         - name: IDE_PORT
@@ -94,10 +159,15 @@ spec:
         - name: IDE_TYPE
           value: "vscode-web"
         volumeMounts:
-        - name: workspace
-          mountPath: /workspace
+        - name: home
+          mountPath: /home/vscode  # 挂载到 HOME 目录 (对齐 Docker Gitspace)
         - name: shared
           mountPath: /shared
+        workingDir: /home/vscode   # 工作目录 = HOME (对齐 Docker Gitspace)
+        securityContext:
+          runAsUser: 1000           # 以 vscode 用户运行
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
         resources:
           requests:
             memory: "1Gi"
@@ -107,7 +177,7 @@ spec:
             cpu: "1000m"
 
       volumes:
-      - name: workspace
+      - name: home                  # 卷名称改为 home
         persistentVolumeClaim:
           claimName: gitspace-vscode-pvc
       - name: shared
