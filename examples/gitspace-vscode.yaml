@@ -44,46 +44,41 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
 
       initContainers:
-      # InitContainer 1: 用户检测和配置
-      - name: detect-user
-        image: gitness/gitspace:vscode-latest
-        command: ["/bin/bash", "-c"]
-        args:
-          - |
-            set -euo pipefail
-
-            # 检测用户配置 (当前使用默认值, 后续可集成 devcontainer.json 检测)
-            echo "export CONTAINER_USER='vscode'" > /shared/user-config.env
-            echo "export REMOTE_USER='vscode'" >> /shared/user-config.env
-            echo "export USER_UID='1000'" >> /shared/user-config.env
-            echo "export USER_GID='1000'" >> /shared/user-config.env
-            echo "export HOME_DIR='/home/vscode'" >> /shared/user-config.env
-
-            echo "[INFO] User configuration:"
-            cat /shared/user-config.env
-        volumeMounts:
-        - name: shared
-          mountPath: /shared
-
-      # InitContainer 2: 用户创建和环境初始化
+      # InitContainer: Gitspace 初始化 (使用预装镜像!)
       - name: gitspace-init
-        image: gitness/gitspace:vscode-latest
+        image: ghcr.io/ysicing/gitspace-runtime:vscode-latest  # 预装 code-server 和所有脚本
         command: ["/bin/bash", "-c"]
         args:
           - |
             set -euo pipefail
 
-            # 加载用户配置
-            source /shared/user-config.env
+            echo "=========================================="
+            echo "Gitspace 初始化开始 (使用预装镜像)"
+            echo "镜像: ghcr.io/ysicing/gitspace-runtime:vscode-latest"
+            echo "=========================================="
 
-            # 创建用户 (如果需要)
-            if [ -f /usr/local/gitspace/scripts/create-user-dynamic.sh ]; then
-              source /usr/local/gitspace/scripts/create-user-dynamic.sh
-              create_or_update_user "$CONTAINER_USER" "$USER_UID" "$USER_GID" "$HOME_DIR" || true
+            # 检查 code-server 是否预装
+            if command -v code-server &> /dev/null; then
+                echo "✓ code-server 已预装: $(code-server --version | head -1)"
+            else
+                echo "⚠️  code-server 未找到"
+            fi
+
+            # 检查脚本是否可用
+            if [ -d /usr/local/gitspace/scripts/common ]; then
+                echo "✓ Docker Gitspace 脚本已加载"
+                ls -la /usr/local/gitspace/scripts/common/ | head -5
+            fi
+
+            # 确保 HOME 目录权限正确
+            HOME_DIR="/home/vscode"
+            if [ -d "$HOME_DIR" ]; then
+                chown -R 1000:1000 "$HOME_DIR" 2>/dev/null || true
+                echo "✓ HOME 目录权限已修复: $HOME_DIR"
             fi
 
             # 数据迁移: 如果检测到旧的 /workspaces 结构, 迁移到 HOME
-            if [ -d /mnt/home/workspaces ] && [ ! -L /mnt/home/workspaces ]; then
+            if [ -d "$HOME_DIR" ] && [ -d /mnt/home/workspaces ] && [ ! -L /mnt/home/workspaces ]; then
               echo "[MIGRATE] 检测到旧的 /workspaces 挂载, 开始迁移到 $HOME_DIR ..."
               for item in /mnt/home/workspaces/*; do
                 if [ -e "$item" ]; then
@@ -99,14 +94,22 @@ spec:
             # 创建向后兼容的符号链接 /workspaces -> $HOME_DIR
             if [ ! -e /mnt/home/workspaces ]; then
               ln -s "$HOME_DIR" /mnt/home/workspaces || true
-              echo "[INFO] 创建符号链接: /workspaces -> $HOME_DIR (向后兼容)"
+              echo "✓ 符号链接已创建: /workspaces -> $HOME_DIR (向后兼容)"
             fi
 
-            # 确保 HOME 目录权限正确
-            chown -R "$USER_UID:$USER_GID" "$HOME_DIR" 2>/dev/null || true
+            # 使用镜像内置的初始化脚本
+            if [ -f /usr/local/bin/gitspace-init.sh ]; then
+                echo "=========================================="
+                echo "执行 Gitspace 初始化脚本..."
+                echo "=========================================="
+                /usr/local/bin/gitspace-init.sh
+            else
+                echo "⚠️  初始化脚本未找到,跳过"
+            fi
 
-            # 执行标准初始化脚本
-            /usr/local/bin/gitspace-init.sh
+            echo "=========================================="
+            echo "✅ Gitspace 初始化完成"
+            echo "=========================================="
         env:
         - name: HOME
           value: "/home/vscode"
@@ -116,7 +119,7 @@ spec:
           value: "my-repo"
         - name: REPO_URL
           value: "https://github.com/example/my-repo.git"
-        - name: REPO_BRANCH
+        - name: BRANCH
           value: "main"
         - name: GIT_USERNAME
           value: "gituser"
@@ -128,21 +131,58 @@ spec:
           value: "8089"
         - name: GITSPACE_IDENTIFIER
           value: "gitspace-vscode-demo"
-        # VSCode 专用配置（可选）
-        - name: VSCODE_EXTENSIONS
-          value: "dbaeumer.vscode-eslint,esbenp.prettier-vscode,golang.go"
         volumeMounts:
         - name: home
-          mountPath: /mnt/home  # InitContainer 使用临时挂载点
+          mountPath: /mnt/home  # InitContainer 使用临时挂载点修复权限
         - name: shared
           mountPath: /shared
         securityContext:
-          runAsUser: 0  # InitContainer 需要 root 权限创建用户和修复权限
+          runAsUser: 0  # InitContainer 需要 root 权限修复权限
 
       containers:
       - name: vscode-ide
-        image: gitness/gitspace:vscode-latest
-        command: ["/bin/bash", "/shared/start.sh"]
+        image: ghcr.io/ysicing/gitspace-runtime:vscode-latest  # 使用预装镜像
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+
+            echo "=========================================="
+            echo "启动 VSCode Server (code-server 已预装!)"
+            echo "=========================================="
+
+            # 检查 code-server
+            code-server --version | head -1
+
+            # 确认仓库路径
+            REPO_PATH="$HOME/${REPO_NAME}"
+            if [ -d "$REPO_PATH" ]; then
+                echo "✓ 仓库已存在: $REPO_PATH"
+                cd "$REPO_PATH"
+            else
+                echo "⚠️  仓库不存在: $REPO_PATH, 使用 HOME: $HOME"
+                cd "$HOME"
+            fi
+
+            # 创建 code-server 配置
+            CONFIG_DIR="$HOME/.config/code-server"
+            mkdir -p "$CONFIG_DIR"
+
+            cat > "$CONFIG_DIR/config.yaml" <<EOF
+            bind-addr: 0.0.0.0:${IDE_PORT}
+            auth: none
+            cert: false
+            EOF
+
+            echo "✓ 配置文件: $CONFIG_DIR/config.yaml"
+            echo "✓ 工作目录: $(pwd)"
+            echo "✓ 端口: ${IDE_PORT}"
+            echo "=========================================="
+            echo "✅ 启动 code-server..."
+            echo "=========================================="
+
+            # 启动 code-server (已预装,无需下载!)
+            exec code-server --disable-workspace-trust "$(pwd)"
         ports:
         - containerPort: 8089
           name: ide
