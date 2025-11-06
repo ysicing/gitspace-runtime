@@ -6,6 +6,7 @@ on:
     paths:
       - 'base/**'
       - '.github/workflows/build-base.yml'
+  workflow_dispatch:
 
 jobs:
   build-and-push:
