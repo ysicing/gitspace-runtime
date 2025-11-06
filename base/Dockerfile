@@ -9,8 +9,7 @@
 # Gitspace 基础镜像
 # 包含所有 IDE 共享的基础工具和配置
 
-FROM ccr.ccs.tencentyun.com/k7scn/base:ubuntu
-# mcr.microsoft.com/devcontainers/base:ubuntu
+FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace base image with common tools"
