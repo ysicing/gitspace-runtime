@@ -35,8 +35,8 @@ RUN echo "Installing latest code-server..." \
     && code-server --version \
     && echo "✓ code-server pre-installed successfully"
 
-# 复制 VSCode 专用脚本
-COPY vscode/scripts/*.sh /usr/local/gitspace/scripts/vscode/
+# 复制 VSCode Web 专用脚本
+COPY vscode-web/scripts/*.sh /usr/local/gitspace/scripts/vscode/
 RUN chmod +x /usr/local/gitspace/scripts/vscode/*.sh
 
 # 预装 VSCode 扩展（如果指定了）
@@ -48,8 +48,8 @@ RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
         done; \
     fi
 
-# 复制 VSCode 初始化脚本
-COPY vscode/init-vscode.sh /usr/local/bin/gitspace-init.sh
+# 复制 VSCode Web 初始化脚本
+COPY vscode-web/init-vscode.sh /usr/local/bin/gitspace-init.sh
 RUN chmod +x /usr/local/bin/gitspace-init.sh
 
 # 创建 VSCode 配置目录
