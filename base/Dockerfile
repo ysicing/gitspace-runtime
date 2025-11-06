@@ -92,9 +92,6 @@ RUN mkdir -p /home/vscode/.config \
 # 复制通用脚本 (现有的统一脚本)
 COPY base/scripts/*.sh /usr/local/gitspace/scripts/common/
 
-# 复制 Docker Gitspace 原始脚本
-COPY base/scripts/docker-gitspace/*.sh /usr/local/gitspace/scripts/common/
-
 # 设置脚本执行权限
 RUN chmod +x /usr/local/gitspace/scripts/common/*.sh
 

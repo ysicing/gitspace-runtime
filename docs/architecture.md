@@ -100,15 +100,14 @@ PersistentVolume
 
 ```
 base/scripts/
-├── docker-gitspace/          # 从 Docker Gitspace 提取
-│   ├── clone-code.sh
-│   ├── manage-user.sh
-│   └── ...
-└── *.sh                      # 统一脚本 (向后兼容)
+├── clone-repository.sh       # 克隆代码仓库
+├── setup-git-credentials.sh  # Git 凭证配置
+├── create-user-dynamic.sh    # 动态创建用户
+└── detect-devcontainer-user.sh # 检测 devcontainer 用户
 
 镜像内路径:
 /usr/local/gitspace/scripts/
-├── common/                   # 通用脚本
+├── common/                   # 通用脚本 (来自 base/scripts/*.sh)
 ├── vscode/                   # VSCode 脚本
 ├── cursor/                   # Cursor 脚本
 └── jetbrains/                # JetBrains 脚本
