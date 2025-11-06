@@ -45,6 +45,7 @@ tasks:
           -t {{.REGISTRY}}:vscode-latest \
           -t {{.REGISTRY}}:vscode-{{.TIMESTAMP}} \
           -f vscode/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -62,6 +63,7 @@ tasks:
           -t {{.REGISTRY}}:vscode-web-latest \
           -t {{.REGISTRY}}:vscode-web-{{.TIMESTAMP}} \
           -f vscode-web/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -78,6 +80,7 @@ tasks:
           -t {{.REGISTRY}}:cursor-latest \
           -t {{.REGISTRY}}:cursor-{{.TIMESTAMP}} \
           -f cursor/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -96,6 +99,7 @@ tasks:
           -t {{.REGISTRY}}:intellij-latest \
           -t {{.REGISTRY}}:intellij-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -114,6 +118,7 @@ tasks:
           -t {{.REGISTRY}}:goland-latest \
           -t {{.REGISTRY}}:goland-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -132,6 +137,7 @@ tasks:
           -t {{.REGISTRY}}:pycharm-latest \
           -t {{.REGISTRY}}:pycharm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -150,6 +156,7 @@ tasks:
           -t {{.REGISTRY}}:webstorm-latest \
           -t {{.REGISTRY}}:webstorm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -168,6 +175,7 @@ tasks:
           -t {{.REGISTRY}}:clion-latest \
           -t {{.REGISTRY}}:clion-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -186,6 +194,7 @@ tasks:
           -t {{.REGISTRY}}:phpstorm-latest \
           -t {{.REGISTRY}}:phpstorm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -204,6 +213,7 @@ tasks:
           -t {{.REGISTRY}}:rubymine-latest \
           -t {{.REGISTRY}}:rubymine-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
@@ -222,6 +232,7 @@ tasks:
           -t {{.REGISTRY}}:rider-latest \
           -t {{.REGISTRY}}:rider-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
+          --pull \
           --push \
           .
 
