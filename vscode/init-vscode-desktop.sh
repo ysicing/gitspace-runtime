@@ -14,14 +14,20 @@ echo "Gitspace VSCode Desktop 初始化开始"
 echo "=========================================="
 
 # 环境变量
-WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+# 对齐 Docker Gitspace: 使用 HOME 目录而不是 WORKSPACE_DIR
+HOME_DIR="${HOME:-/home/vscode}"
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 REPO_NAME="${REPO_NAME:-repo}"
 IDE_TYPE="${IDE_TYPE:-vs_code}"
 
+# 向后兼容: 如果设置了 WORKSPACE_DIR, 打印警告
+if [ -n "${WORKSPACE_DIR:-}" ] && [ "$WORKSPACE_DIR" != "$HOME_DIR" ]; then
+    echo "[WARN] WORKSPACE_DIR is deprecated. Using HOME=$HOME_DIR for Docker Gitspace compatibility"
+fi
+
 echo "配置信息:"
-echo "  - Workspace: ${WORKSPACE_DIR}"
+echo "  - Home: ${HOME_DIR}"
 echo "  - Repository: ${REPO_NAME}"
 echo "  - Branch: ${BRANCH}"
 echo "  - IDE Type: ${IDE_TYPE}"
@@ -48,20 +54,18 @@ if [ -n "${REPO_URL}" ]; then
     echo "步骤 2: 克隆代码仓库"
     echo "=========================================="
 
-    REPO_DIR="${WORKSPACE_DIR}/${REPO_NAME}"
+    REPO_DIR="${HOME_DIR}/${REPO_NAME}"
 
     if [ -d "${REPO_DIR}/.git" ]; then
         echo "✓ 仓库已存在: ${REPO_DIR}"
     else
         echo "克隆仓库到: ${REPO_DIR}"
-        mkdir -p "${WORKSPACE_DIR}"
+        mkdir -p "${HOME_DIR}"
 
-        # 使用 /usr/local/gitspace/scripts/common/clone-code.sh 脚本
-        if [ -f "/usr/local/gitspace/scripts/common/clone-code.sh" ]; then
-            export CODE_REPO_URL="${REPO_URL}"
-            export CODE_REPO_BRANCH="${BRANCH}"
-            export HOME_DIR="${WORKSPACE_DIR}"
-            /usr/local/gitspace/scripts/common/clone-code.sh
+        # 使用 /usr/local/gitspace/scripts/common/clone-repository.sh 脚本
+        if [ -f "/usr/local/gitspace/scripts/common/clone-repository.sh" ]; then
+            # clone-repository.sh 使用 HOME 环境变量
+            /usr/local/gitspace/scripts/common/clone-repository.sh
         else
             # 回退到简单 git clone
             git clone --branch "${BRANCH}" "${REPO_URL}" "${REPO_DIR}" || {
