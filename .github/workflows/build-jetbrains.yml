@@ -7,10 +7,6 @@ on:
       - 'jetbrains/**'
       - '.github/workflows/build-jetbrains.yml'
 
-env:
-  REGISTRY: ghcr.io/ysicing/gitspace-runtime
-  TIMESTAMP: ${{ github.run_id }}
-
 jobs:
   build-and-push:
     name: Build and Push JetBrains Image
@@ -25,7 +21,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      # 设置Docker Buildx
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -37,32 +35,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 构建并推送JetBrains镜像
-      - name: Build and push JetBrains image
-        uses: docker/build-push-action@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
         with:
-          context: .
-          file: ./jetbrains/Dockerfile
-          pull: true
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }}
-            ${{ env.REGISTRY }}:jetbrains-latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          go-version: 'stable'
+          cache: true
 
-      # 显示镜像信息
-      - name: Show Image Info
-        run: |
-          echo "================================"
-          echo "✓ JetBrains 镜像构建并推送完成!"
-          echo "================================"
-          echo "Registry: ${{ env.REGISTRY }}"
-          echo "镜像标签: ${{ env.TIMESTAMP }}"
-          echo ""
-          echo "镜像地址:"
-          echo "  - ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }}"
-          echo "  - ${{ env.REGISTRY }}:jetbrains-latest"
-          echo ""
-          echo "测试命令:"
-          echo "  docker run --rm ${{ env.REGISTRY }}:jetbrains-${{ env.TIMESTAMP }} java -version"
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: task build-jetbrains

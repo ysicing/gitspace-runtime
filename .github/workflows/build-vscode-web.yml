@@ -1,15 +1,15 @@
-name: Build Cursor Image
+name: Build VSCode Web Image
 
 on:
   push:
     branches: [ master, main ]
     paths:
-      - 'cursor/**'
-      - '.github/workflows/build-cursor.yml'
+      - 'vscode-web/**'
+      - '.github/workflows/build-vscode-web.yml'
 
 jobs:
   build-and-push:
-    name: Build and Push Cursor Image
+    name: Build and Push VSCode Web Image
     runs-on: ubuntu-latest
 
     permissions:
@@ -48,4 +48,4 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: task build-cursor
+        run: task build-vscode-web

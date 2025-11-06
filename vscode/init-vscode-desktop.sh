@@ -1,16 +1,16 @@
 #!/bin/bash
 # Copyright (c) 2025-2025 All rights reserved.
 #
-# Gitspace Cursor/Windsurf InitContainer 初始化脚本
+# Gitspace VSCode Desktop InitContainer 初始化脚本
 # 负责：
 # 1. 配置 Git 凭证
 # 2. 克隆代码仓库
-# 3. 配置 SSH 认证（供 Cursor/Windsurf Remote-SSH 连接）
+# 3. 启动 SSH Server（供 VSCode Desktop Remote-SSH 连接）
 
 set -e
 
 echo "=========================================="
-echo "Gitspace Cursor/Windsurf 初始化开始"
+echo "Gitspace VSCode Desktop 初始化开始"
 echo "=========================================="
 
 # 环境变量
@@ -18,15 +18,13 @@ WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 REPO_NAME="${REPO_NAME:-repo}"
-IDE_TYPE="${IDE_TYPE:-cursor}"
-SSH_PORT="${SSH_PORT:-8098}"
+IDE_TYPE="${IDE_TYPE:-vs_code}"
 
 echo "配置信息:"
 echo "  - Workspace: ${WORKSPACE_DIR}"
 echo "  - Repository: ${REPO_NAME}"
 echo "  - Branch: ${BRANCH}"
 echo "  - IDE Type: ${IDE_TYPE}"
-echo "  - SSH Port: ${SSH_PORT}"
 
 # 1. 配置 Git 凭证（必须在克隆前配置，尤其是私有仓库）
 if [ -n "${GIT_USERNAME}" ] && [ -n "${GIT_PASSWORD}" ]; then
@@ -77,7 +75,7 @@ if [ -n "${REPO_URL}" ]; then
     fi
 fi
 
-# 3. 配置 SSH Server（Cursor/Windsurf 使用 SSH 连接）
+# 3. 配置 SSH Server（桌面版特有）
 echo ""
 echo "=========================================="
 echo "步骤 3: 配置 SSH Server"
@@ -111,20 +109,14 @@ echo "初始化完成！"
 echo "=========================================="
 echo "SSH 连接信息:"
 echo "  - Host: <gitspace-pod-ip>"
-echo "  - Port: ${SSH_PORT}"
+echo "  - Port: 8088"
 echo "  - User: vscode"
 echo "  - Auth: SSH Key (推荐) 或 空密码"
 echo ""
-if [ "${IDE_TYPE}" = "cursor" ]; then
-    echo "Cursor Remote-SSH 连接配置:"
-elif [ "${IDE_TYPE}" = "windsurf" ]; then
-    echo "Windsurf Remote-SSH 连接配置:"
-else
-    echo "Remote-SSH 连接配置:"
-fi
+echo "VSCode Remote-SSH 连接配置:"
 echo "  Host gitspace-${REPO_NAME}"
 echo "    HostName <gitspace-url>"
-echo "    Port ${SSH_PORT}"
+echo "    Port 8088"
 echo "    User vscode"
 echo "    IdentityFile ~/.ssh/id_rsa (如果使用 SSH key)"
 echo "=========================================="

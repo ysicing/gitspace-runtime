@@ -1,103 +1,247 @@
 version: '3'
 
 vars:
-  # 镜像仓库选择 (ttl.sh/ysicing/gitspace-runtime 或 ghcr.io/ysicing/gitspace-runtime)
   REGISTRY: ghcr.io/ysicing/gitspace-runtime
-  TIMESTAMP: "{{ now | date \"20060102-150405\" }}"
-  IMAGE_TAG: "{{ .TIMESTAMP }}"
-  CONTEXT: .
-  # VSCode 扩展列表（默认预装扩展）
-  VSCODE_EXTENSIONS: "ms-python.python,ms-vscode.vscode-typescript-next,esbenp.prettier-vscode,ms-vscode.vscode-json"
+  TIMESTAMP:
+    sh: date -u +'%Y%m%d%H'
+  BUILD_DATE:
+    sh: date -u +'%Y-%m-%dT%H:%M:%SZ'
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  PLATFORMS: linux/amd64
+  VSCODE_EXTENSIONS: "timonwong.shellcheck,shardulm94.trailing-spaces,gruntfuggly.todo-tree,editorconfig.editorconfig,vscode-icons-team.vscode-icons,ms-ceintl.vscode-language-pack-zh-hans"
 
 tasks:
-  # 显示项目信息
-  info:
-    desc: 显示项目信息
+  default:
+    desc: 显示帮助信息
     cmds:
-      - echo "Gitspace Runtime - 多镜像构建工具"
-      - 'echo "Registry: {{ .REGISTRY }}"'
-      - 'echo "镜像标签: {{ .IMAGE_TAG }}"'
-      - 'echo "VSCode扩展: {{ .VSCODE_EXTENSIONS }}"'
+      - task --list
 
-  # 构建单个镜像
-  build-image:
-    desc: 构建单个镜像
-    vars:
-      IMAGE:
-    cmds:
-      - |
-        echo "构建 {{ .IMAGE }} 镜像..."
-        docker build \
-          -t {{ .REGISTRY }}:{{ .IMAGE }}-{{ .IMAGE_TAG }} \
-          -f {{ .IMAGE }}/Dockerfile \
-          {{ if eq .IMAGE "vscode" }}--build-arg BASE_IMAGE={{ .REGISTRY }}:base-{{ .IMAGE_TAG }} --build-arg VSCODE_EXTENSIONS="{{ .VSCODE_EXTENSIONS }}"{{ end }} \
-          {{ if eq .IMAGE "jetbrains" }}--build-arg BASE_IMAGE={{ .REGISTRY }}:base-{{ .IMAGE_TAG }}{{ end }} \
-          {{ if eq .IMAGE "cursor" }}--build-arg VSCODE_IMAGE={{ .REGISTRY }}:vscode-{{ .IMAGE_TAG }}{{ end }} \
-          {{ .CONTEXT }}
-        echo "✓ {{ .IMAGE }} 镜像构建完成: {{ .REGISTRY }}:{{ .IMAGE }}-{{ .IMAGE_TAG }}"
-
-  # 构建所有镜像（VSCode默认包含扩展）
-  build-all:
-    desc: 构建所有镜像（VSCode默认包含扩展）
-    deps: [build-base, build-vscode, build-jetbrains, build-cursor]
-    cmds:
-      - echo "================================"
-      - echo "✓ 所有镜像构建完成!"
-      - echo "================================"
-
-  # 构建所有镜像（包含自定义扩展的VSCode）
-  build-all-with-extensions:
-    desc: 构建所有镜像（含自定义扩展的VSCode）
-    deps: [build-base, build-vscode-with-extensions, build-jetbrains, build-cursor]
-    cmds:
-      - echo "================================"
-      - echo "✓ 所有镜像构建完成（含VSCode插件）!"
-      - echo "================================"
-
-  # 构建基础镜像
   build-base:
     desc: 构建基础镜像
     cmds:
-      - task: build-image
-        vars:
-          IMAGE: base
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          -t {{.REGISTRY}}:base-latest \
+          -t {{.REGISTRY}}:base-{{.TIMESTAMP}} \
+          -f base/Dockerfile \
+          --push \
+          .
 
-  # 构建VSCode镜像（默认包含扩展）
   build-vscode:
-    desc: 构建VSCode镜像（默认包含扩展）
-    deps: [build-base]
-    cmds:
-      - task: build-image
-        vars:
-          IMAGE: vscode
-      - 'echo "✓ 预装插件: {{ .VSCODE_EXTENSIONS }}"'
+    desc: 构建 VSCode Desktop 镜像
 
-  # 构建自定义扩展的VSCode镜像
-  build-vscode-with-extensions:
-    desc: 构建自定义扩展的VSCode镜像
-    deps: [build-base]
-    vars:
-      VSCODE_EXTENSIONS: "ms-python.python,ms-vscode.vscode-typescript-next,esbenp.prettier-vscode,ms-vscode.vscode-json"
     cmds:
-      - task: build-image
-        vars:
-          IMAGE: vscode
-      - 'echo "✓ 预装插件: {{ .VSCODE_EXTENSIONS }}"'
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg VSCODE_EXTENSIONS="{{.VSCODE_EXTENSIONS}}" \
+          -t {{.REGISTRY}}:vscode-latest \
+          -t {{.REGISTRY}}:vscode-{{.TIMESTAMP}} \
+          -f vscode/Dockerfile \
+          --push \
+          .
 
-  # 构建JetBrains镜像
-  build-jetbrains:
-    desc: 构建JetBrains镜像
-    deps: [build-base]
+  build-vscode-web:
+    desc: 构建 VSCode Web 镜像
+
     cmds:
-      - task: build-image
-        vars:
-          IMAGE: jetbrains
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg VSCODE_EXTENSIONS="{{.VSCODE_EXTENSIONS}}" \
+          -t {{.REGISTRY}}:vscode-web-latest \
+          -t {{.REGISTRY}}:vscode-web-{{.TIMESTAMP}} \
+          -f vscode-web/Dockerfile \
+          --push \
+          .
 
-  # 构建Cursor镜像
   build-cursor:
-    desc: 构建Cursor镜像
-    deps: [build-vscode]
+    desc: 构建 Cursor 镜像
+
     cmds:
-      - task: build-image
-        vars:
-          IMAGE: cursor
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          -t {{.REGISTRY}}:cursor-latest \
+          -t {{.REGISTRY}}:cursor-{{.TIMESTAMP}} \
+          -f cursor/Dockerfile \
+          --push \
+          .
+
+  build-intellij:
+    desc: 构建 IntelliJ IDEA 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=IIC \
+          --build-arg IDE_NAME=intellij \
+          -t {{.REGISTRY}}:intellij-latest \
+          -t {{.REGISTRY}}:intellij-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-goland:
+    desc: 构建 GoLand 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=GO \
+          --build-arg IDE_NAME=goland \
+          -t {{.REGISTRY}}:goland-latest \
+          -t {{.REGISTRY}}:goland-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-pycharm:
+    desc: 构建 PyCharm Community 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=PCC \
+          --build-arg IDE_NAME=pycharm \
+          -t {{.REGISTRY}}:pycharm-latest \
+          -t {{.REGISTRY}}:pycharm-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-webstorm:
+    desc: 构建 WebStorm 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=WS \
+          --build-arg IDE_NAME=webstorm \
+          -t {{.REGISTRY}}:webstorm-latest \
+          -t {{.REGISTRY}}:webstorm-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-clion:
+    desc: 构建 CLion 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=CL \
+          --build-arg IDE_NAME=clion \
+          -t {{.REGISTRY}}:clion-latest \
+          -t {{.REGISTRY}}:clion-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-phpstorm:
+    desc: 构建 PHPStorm 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=PS \
+          --build-arg IDE_NAME=phpstorm \
+          -t {{.REGISTRY}}:phpstorm-latest \
+          -t {{.REGISTRY}}:phpstorm-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-rubymine:
+    desc: 构建 RubyMine 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=RM \
+          --build-arg IDE_NAME=rubymine \
+          -t {{.REGISTRY}}:rubymine-latest \
+          -t {{.REGISTRY}}:rubymine-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-rider:
+    desc: 构建 Rider 镜像
+
+    cmds:
+      - |
+        docker buildx build \
+          --platform {{.PLATFORMS}} \
+          --build-arg BUILD_DATE={{.BUILD_DATE}} \
+          --build-arg VCS_REF={{.GIT_COMMIT}} \
+          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg IDE_PRODUCT_CODE=RD \
+          --build-arg IDE_NAME=rider \
+          -t {{.REGISTRY}}:rider-latest \
+          -t {{.REGISTRY}}:rider-{{.TIMESTAMP}} \
+          -f jetbrains/Dockerfile \
+          --push \
+          .
+
+  build-jetbrains:
+    desc: 构建所有 JetBrains IDE 镜像
+    cmds:
+      - task: build-intellij
+      - task: build-goland
+      - task: build-pycharm
+      - task: build-webstorm
+      - task: build-clion
+      - task: build-phpstorm
+      - task: build-rubymine
+      - task: build-rider
+
+  build-all:
+    desc: 构建所有镜像
+    cmds:
+      - task: build-base
+      - task: build-vscode
+      - task: build-vscode-web
+      - task: build-cursor
+      - task: build-jetbrains

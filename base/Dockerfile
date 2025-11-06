@@ -9,7 +9,8 @@
 # Gitspace 基础镜像
 # 包含所有 IDE 共享的基础工具和配置
 
-FROM mcr.microsoft.com/devcontainers/base:ubuntu
+FROM ccr.ccs.tencentyun.com/k7scn/base:ubuntu
+# mcr.microsoft.com/devcontainers/base:ubuntu
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace base image with common tools"
@@ -17,9 +18,9 @@ LABEL description="Gitspace base image with common tools"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 支持中文字符
-ENV LC_ALL C.UTF-8
-ENV LANG C.UTF-8
-ENV LANGUAGE C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV LANGUAGE=C.UTF-8
 
 RUN echo "export LC_ALL=C.UTF-8" >> ~/.bashrc && \
     echo "export LANG=C.UTF-8" >> ~/.bashrc && \
@@ -46,6 +47,24 @@ RUN apt-get update && apt-get install -y \
     && curl --version \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装 Node.js 18.x LTS（使用 NodeSource）
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && node --version \
+    && npm --version \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 AI CLI 工具（全局安装）
+# 这些工具将在所有 IDE 镜像中可用
+RUN npm install -g \
+    @anthropic-ai/claude-code \
+    @openai/codex \
+    @google/gemini-cli \
+    && claude --version || echo "Claude Code installed" \
+    && codex --version || echo "Codex installed" \
+    && gemini --version || echo "Gemini CLI installed"
 
 # 创建 vscode 用户（UID/GID: 1000，与 Docker 实现对齐）
 RUN if ! id -u vscode > /dev/null 2>&1; then \
