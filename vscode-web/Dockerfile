@@ -39,26 +39,29 @@ RUN echo "Installing latest code-server..." \
 COPY vscode-web/scripts/*.sh /usr/local/gitspace/scripts/vscode/
 RUN chmod +x /usr/local/gitspace/scripts/vscode/*.sh
 
-# 预装 VSCode 扩展（如果指定了）
-RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
-        echo "Installing VSCode extensions: ${VSCODE_EXTENSIONS}"; \
-        for ext in $(echo "${VSCODE_EXTENSIONS}" | tr ',' ' '); do \
-            echo "Installing extension: ${ext}"; \
-            code-server --install-extension "${ext}" || echo "Failed to install: ${ext}"; \
-        done; \
-    fi
-
 # 复制 VSCode Web 初始化脚本
 COPY vscode-web/init-vscode.sh /usr/local/bin/gitspace-init.sh
 RUN chmod +x /usr/local/bin/gitspace-init.sh
 
-# 创建 VSCode 配置目录
+# 创建 VSCode 配置目录并设置权限
 RUN mkdir -p /home/vscode/.config/code-server \
     /home/vscode/.local/share/code-server \
     && chown -R vscode:vscode /home/vscode/.config /home/vscode/.local
 
-# 切换到非 root 用户
+# 切换到 vscode 用户（在安装扩展前切换，确保扩展安装到vscode用户目录）
 USER vscode
+
+# 预装 VSCode 扩展（作为 vscode 用户安装）
+RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
+        echo "Installing VSCode extensions as vscode user: ${VSCODE_EXTENSIONS}"; \
+        for ext in $(echo "${VSCODE_EXTENSIONS}" | tr ',' ' '); do \
+            echo "Installing extension: ${ext}"; \
+            code-server --install-extension "${ext}" || echo "Failed to install: ${ext}"; \
+        done; \
+        echo "✓ Extensions installed to /home/vscode/.local/share/code-server/extensions/"; \
+    else \
+        echo "No extensions specified, skipping extension installation"; \
+    fi
 
 # 健康检查：检查 code-server 命令是否可用（安装后）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
