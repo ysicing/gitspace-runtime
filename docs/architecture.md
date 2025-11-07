@@ -123,19 +123,14 @@ base/scripts/
 apiVersion: v1
 kind: Pod
 spec:
-  initContainers:
-  - name: gitspace-init
-    image: ghcr.io/ysicing/gitspace-runtime:vscode-latest
-    # 初始化: 克隆代码、设置凭证
-    volumeMounts:
-    - name: home
-      mountPath: /home/vscode
-
   containers:
-  - name: vscode-ide
+  - name: gitspace
     image: ghcr.io/ysicing/gitspace-runtime:vscode-latest
-    # code-server 已预装,直接启动 ✅
-    command: ["code-server", "--disable-workspace-trust", "."]
+    # 直接执行 gitspace-init.sh，它会：
+    # 1. 配置 Git 凭证（包括 user.name 和 user.email）
+    # 2. 克隆代码到 /home/vscode/<repo>
+    # 3. 启动 IDE（code-server 或 sshd）
+    command: ["/usr/local/bin/gitspace-init.sh"]
     ports:
     - containerPort: 8089
     volumeMounts:
@@ -148,28 +143,33 @@ spec:
       claimName: gitspace-pvc
 ```
 
+**架构优势**：
+- ✅ **简化部署** - 无需 InitContainer，只有一个容器
+- ✅ **环境一致** - Git 配置在主容器内生效，不会丢失
+- ✅ **减少开销** - 少一个容器的启动和调度
+- ✅ **配置持久化** - 所有配置都保存在 PVC 中
+
 ### 启动流程
 
 ```
 Pod 创建
   ↓ (10s)
-InitContainer 执行
-  ├─ 克隆代码到 /home/vscode/<repo>
-  ├─ 设置 Git 凭证
-  └─ 用户初始化
-  ↓ (20s)
 主容器启动
-  ├─ code-server 已预装 ✅
-  ├─ 读取持久化配置
-  └─ 直接启动 IDE
-  ↓ (5s)
-✅ 就绪 (总计 30-60秒)
+  ├─ 执行 gitspace-init.sh
+  ├─ 配置 Git 凭证（user.name + user.email）
+  ├─ 克隆代码到 /home/vscode/<repo>
+  └─ 启动 IDE（code-server 或 sshd）
+  ↓ (20-30s)
+✅ 就绪 (总计 30-40秒)
 ```
 
-**对比传统方式** (3-5分钟):
+**对比 InitContainer 方式**:
 ```
-传统流程:
-  Pod 创建 → 下载 code-server (60s) → 安装 (60s) → 配置 (30s) → 启动
+传统 InitContainer 流程 (40-50秒):
+  Pod 创建 → InitContainer 执行 (20s) → 主容器启动 (20s)
+
+新的简化流程 (30-40秒):
+  Pod 创建 → 主容器执行初始化并启动 IDE (30s)
 ```
 
 ---
@@ -368,33 +368,45 @@ K8s Gitspace 使用预装镜像的网络流量:
 
 ## 访问架构
 
-### Caddy2-k8s 集成
+### 统一 Pod IP 访问模式
 
-使用 caddy2-k8s 实现动态路由，无需手动管理 Service/Ingress：
+所有 IDE 类型统一使用 Pod IP:Port 格式直接访问，无需经过域名解析：
 
-**必需的 Labels**:
+**访问格式**:
+- VSCode Web (HTTP): `http://{PodIP}:8089`
+- VSCode Desktop (SSH): `{PodIP}:8088`
+- JetBrains IDEs (SSH): `{PodIP}:8022`
+- 应用端口: `{PodIP}:{Port}` (PortWatcher 自动发现)
+
+**架构优势**:
+- ✅ 直接连接 Pod，无需 Service/Ingress
+- ✅ 零网络跳转延迟
+- ✅ 简化配置管理
+- ✅ 无需域名解析
+
+### Caddy2-k8s 集成（仅限 VSCode Web）
+
+当前实现中，**仅 VSCode Web** 添加 Caddy2-k8s 标签以支持可选的域名访问，其他 IDE 类型（Desktop、JetBrains）直接使用 Pod IP 访问。
+
+**VSCode Web 的 Labels**:
 ```yaml
 labels:
-  gitspace.app.io/managed-by: "caddy"  # 触发 caddy2-k8s 监控
+  gitspace.app.io/managed-by: "caddy"  # 触发 caddy2-k8s 监控（仅 VSCode Web）
   app: "gitspace"
   gitspace: "{identifier}"
 ```
 
-**必需的 Annotations**:
+**所有 IDE 类型的 Annotations**:
 ```yaml
 annotations:
-  gitspace.caddy.default.port: "{port}"  # IDE 服务端口，如 "8089"
+  gitspace.caddy.default.port: "{port}"  # IDE 服务端口
 ```
 
-**访问模式**:
-- IDE 主域名: `https://{identifier}.{domain}`
-- 应用端口: `https://{identifier}-{port}.{domain}` (PortWatcher 自动发现)
-
-**架构优势**:
-- ✅ 无需创建 Service/Ingress 资源
-- ✅ 直接路由到 Pod IP (低延迟)
-- ✅ 自动端口发现和映射
-- ✅ 动态证书管理
+**标签策略**:
+- ✅ VSCode Web: 包含 `gitspace.app.io/managed-by: "caddy"` 标签，支持域名访问
+- ❌ VSCode Desktop: 不包含 caddy 标签，仅 Pod IP 访问
+- ❌ JetBrains IDEs: 不包含 caddy 标签，仅 Pod IP 访问
+- ❌ Cursor/Windsurf: 不包含 caddy 标签，仅 Pod IP 访问
 
 **参考**: [caddy2-k8s](https://github.com/ysicing/caddy2-k8s)
 
