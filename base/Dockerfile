@@ -47,8 +47,8 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Node.js 18.x LTS（使用 NodeSource）
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+# 安装 Node.js 24.x LTS（使用 NodeSource）
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
     && node --version \
     && npm --version \
