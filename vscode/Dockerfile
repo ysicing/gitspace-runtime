@@ -62,9 +62,9 @@ RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
         # 这里只是创建目录结构
     fi
 
-# 复制初始化脚本
-COPY vscode/init-vscode-desktop.sh /usr/local/bin/gitspace-init.sh
-RUN chmod +x /usr/local/bin/gitspace-init.sh
+# 复制运行脚本（与 orchestrator 启动逻辑对齐）
+COPY vscode/gitspace-run.sh /usr/local/bin/gitspace-run.sh
+RUN chmod +x /usr/local/bin/gitspace-run.sh
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /home/vscode/.ssh \

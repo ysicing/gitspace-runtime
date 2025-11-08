@@ -1,6 +1,5 @@
 #!/bin/bash
 # 通用 Git 凭证设置脚本
-
 set -euo pipefail
 
 log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
@@ -16,6 +15,7 @@ setup_git_credentials() {
 
     # 使用 git credential cache（与 Docker 实现对齐）
     # 超时时间: 2592000秒 = 30天
+    # 使用 git credential cache
     git config --global credential.helper 'cache --timeout=2592000'
 
     # 构建带凭证的 URL

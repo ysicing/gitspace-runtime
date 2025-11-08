@@ -1,27 +1,12 @@
 #!/bin/bash
-# Gitspace VSCode Web 初始化并启动脚本
-# 执行顺序：Git凭证 → 克隆代码 → 启动 code-server
-
+# Gitspace VSCode Web 启动脚本
 set -euo pipefail
 
-# ========================================
-# 环境变量
-# ========================================
-# 对齐 Docker Gitspace: 使用 HOME 目录而不是 WORKSPACE_DIR
 HOME_DIR="${HOME:-/home/vscode}"
 REPO_NAME="${REPO_NAME:-}"
 REPO_DIR="$HOME_DIR/$REPO_NAME"
 IDE_PORT="${IDE_PORT:-8089}"
-GITSPACE_IDENTIFIER="${GITSPACE_IDENTIFIER:-gitspace}"
 
-# 向后兼容: 如果设置了 WORKSPACE_DIR, 打印警告
-if [ -n "${WORKSPACE_DIR:-}" ] && [ "$WORKSPACE_DIR" != "$HOME_DIR" ]; then
-    echo "[WARN] WORKSPACE_DIR is deprecated. Using HOME=$HOME_DIR for Docker Gitspace compatibility"
-fi
-
-# ========================================
-# 日志函数
-# ========================================
 log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
 log_error() { echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $*" >&2; }
 log_success() { echo "[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
@@ -85,11 +70,7 @@ CONFIG_EOF
     log_success "=========================================="
 
     # 启动 code-server（作为主进程）
-    if [ -n "$REPO_NAME" ] && [ -d "$REPO_DIR" ]; then
-        exec code-server --disable-workspace-trust "$REPO_DIR"
-    else
-        exec code-server --disable-workspace-trust "$HOME_DIR"
-    fi
+    exec code-server --disable-workspace-trust "$(pwd)"
 }
 
 # 执行主函数

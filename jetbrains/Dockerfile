@@ -105,9 +105,9 @@ ENV IDE_NAME=${IDE_NAME}
 COPY jetbrains/scripts/*.sh /usr/local/gitspace/scripts/jetbrains/
 RUN chmod +x /usr/local/gitspace/scripts/jetbrains/*.sh
 
-# 复制 JetBrains 初始化脚本
-COPY jetbrains/init-jetbrains.sh /usr/local/bin/gitspace-init.sh
-RUN chmod +x /usr/local/bin/gitspace-init.sh
+# 复制 JetBrains 运行脚本
+COPY jetbrains/gitspace-run.sh /usr/local/bin/-gitspacerun.sh
+RUN chmod +x /usr/local/bin/gitspace-run.sh
 
 # 设置环境变量
 ENV JETBRAINS_CACHE_DIR=/home/vscode/.cache/JetBrains

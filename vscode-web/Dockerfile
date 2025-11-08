@@ -39,29 +39,36 @@ RUN echo "Installing latest code-server..." \
 COPY vscode-web/scripts/*.sh /usr/local/gitspace/scripts/vscode/
 RUN chmod +x /usr/local/gitspace/scripts/vscode/*.sh
 
-# 复制 VSCode Web 初始化脚本
-COPY vscode-web/init-vscode.sh /usr/local/bin/gitspace-init.sh
-RUN chmod +x /usr/local/bin/gitspace-init.sh
+# 复制脚本到系统路径
+COPY vscode-web/gitspace-init.sh /usr/local/bin/gitspace-init.sh
+COPY vscode-web/gitspace-run.sh /usr/local/bin/gitspace-run.sh
+RUN chmod +x /usr/local/bin/gitspace-init.sh /usr/local/bin/gitspace-run.sh
 
-# 创建 VSCode 配置目录并设置权限
-RUN mkdir -p /home/vscode/.config/code-server \
-    /home/vscode/.local/share/code-server \
-    && chown -R vscode:vscode /home/vscode/.config /home/vscode/.local
+# 创建预构建配置目录（在安全位置，不会被 PVC 覆盖）
+RUN mkdir -p /opt/gitspace-vscode/.config/code-server \
+    /opt/gitspace-vscode/.local/share/code-server \
+    && chown -R vscode:vscode /opt/gitspace-vscode/.config /opt/gitspace-vscode/.local
 
-# 切换到 vscode 用户（在安装扩展前切换，确保扩展安装到vscode用户目录）
+# 切换到 vscode 用户（在安装扩展前切换）
 USER vscode
 
-# 预装 VSCode 扩展（作为 vscode 用户安装）
+# 预装 VSCode 扩展到预构建目录
 RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
-        echo "Installing VSCode extensions as vscode user: ${VSCODE_EXTENSIONS}"; \
+        echo "Installing VSCode extensions: ${VSCODE_EXTENSIONS}"; \
         for ext in $(echo "${VSCODE_EXTENSIONS}" | tr ',' ' '); do \
             echo "Installing extension: ${ext}"; \
-            code-server --install-extension "${ext}" || echo "Failed to install: ${ext}"; \
+            code-server --install-extension "${ext}" \
+                --extensions-dir "/opt/gitspace-vscode/.local/share/code-server/extensions/" \
+                || echo "Failed to install: ${ext}"; \
         done; \
-        echo "✓ Extensions installed to /home/vscode/.local/share/code-server/extensions/"; \
+        echo "✓ Extensions installed to /opt/gitspace-vscode/.local/share/code-server/extensions/"; \
     else \
         echo "No extensions specified, skipping extension installation"; \
     fi
+
+# 切换回 root 以便后续操作
+USER root
+
 
 # 健康检查：检查 code-server 命令是否可用（安装后）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \

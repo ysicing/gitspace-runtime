@@ -53,9 +53,9 @@ RUN ssh-keygen -A
 COPY cursor/scripts/*.sh /usr/local/gitspace/scripts/cursor/
 RUN chmod +x /usr/local/gitspace/scripts/cursor/*.sh
 
-# 复制初始化脚本
-COPY cursor/init-cursor.sh /usr/local/bin/gitspace-init.sh
-RUN chmod +x /usr/local/bin/gitspace-init.sh
+# 复制运行脚本
+COPY cursor/gitspace-run.sh /usr/local/bin/gitspace-run.sh
+RUN chmod +x /usr/local/bin/gitspace-run.sh
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /home/vscode/.ssh \
