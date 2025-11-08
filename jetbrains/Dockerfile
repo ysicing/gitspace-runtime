@@ -106,7 +106,7 @@ COPY jetbrains/scripts/*.sh /usr/local/gitspace/scripts/jetbrains/
 RUN chmod +x /usr/local/gitspace/scripts/jetbrains/*.sh
 
 # 复制 JetBrains 运行脚本
-COPY jetbrains/gitspace-run.sh /usr/local/bin/-gitspacerun.sh
+COPY jetbrains/gitspace-run.sh /usr/local/bin/gitspace-run.sh
 RUN chmod +x /usr/local/bin/gitspace-run.sh
 
 # 设置环境变量
