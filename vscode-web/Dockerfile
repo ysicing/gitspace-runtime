@@ -66,9 +66,8 @@ RUN if [ -n "${VSCODE_EXTENSIONS}" ]; then \
         echo "No extensions specified, skipping extension installation"; \
     fi
 
-# 切换回 root 以便后续操作
-USER root
-
+# 保持使用 vscode 用户运行（安全最佳实践）
+# USER vscode 已在上面设置，无需切换回 root
 
 # 健康检查：检查 code-server 命令是否可用（安装后）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
