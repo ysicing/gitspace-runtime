@@ -218,6 +218,12 @@ main() {
     log_info "SSH Port: ${SSH_PORT}"
     log_info "=========================================="
 
+    # 第0步：确保 HOME 目录权限正确
+    log_info "Step 0/7: Ensuring HOME directory permissions..."
+    run_as_root mkdir -p "$HOME_DIR"
+    run_as_root chown -R vscode:vscode "$HOME_DIR"
+    log_info "HOME directory permissions set correctly"
+
     log_info "Step 1/7: Setting up Git credentials..."
     setup_git_credentials
 

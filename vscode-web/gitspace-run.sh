@@ -11,6 +11,18 @@ log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
 log_error() { echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $*" >&2; }
 log_success() { echo "[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
 
+# 权限提升函数
+run_as_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        log_error "Command requires root privileges but sudo is unavailable: $*"
+        exit 1
+    fi
+}
+
 # ========================================
 # 主函数
 # ========================================
@@ -19,6 +31,12 @@ main() {
     log_info "Gitspace VSCode Web Initialization Started"
     log_info "Gitspace ID: $GITSPACE_IDENTIFIER"
     log_info "=========================================="
+
+    # 第0步：确保 HOME 目录权限正确
+    log_info "Step 0/3: Ensuring HOME directory permissions..."
+    run_as_root mkdir -p "$HOME_DIR"
+    run_as_root chown -R vscode:vscode "$HOME_DIR"
+    log_info "HOME directory permissions set correctly"
 
     # 第1步：设置 Git 凭证
     log_info "Step 1/3: Setting up Git credentials..."
