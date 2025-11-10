@@ -61,16 +61,13 @@ configure_ssh_server() {
     mkdir -p "$HOME_DIR/.ssh"
     chmod 700 "$HOME_DIR/.ssh"
 
-    # 设置用户密码（如果提供了环境变量）
-    if [ -n "${SSH_PASSWORD:-}" ]; then
-        log_info "Setting SSH password from SSH_PASSWORD environment variable"
-        echo "vscode:${SSH_PASSWORD}" | run_as_root chpasswd
-    elif [ -n "${VSCODE_PASSWORD:-}" ]; then
-        log_info "Setting SSH password from VSCODE_PASSWORD environment variable"
-        echo "vscode:${VSCODE_PASSWORD}" | run_as_root chpasswd
+    # 设置用户密码（使用 GITSPACE_ACCESS_KEY 或空密码）
+    if [ -n "${GITSPACE_ACCESS_KEY:-}" ]; then
+        log_info "Setting SSH password from GITSPACE_ACCESS_KEY"
+        echo "vscode:${GITSPACE_ACCESS_KEY}" | run_as_root chpasswd
     else
-        log_info "No password provided, using empty password (default)"
-        # 确保 vscode 用户有空密码（已在 Dockerfile 中设置）
+        log_info "No GITSPACE_ACCESS_KEY provided, using empty password"
+        # vscode 用户已在 Dockerfile 中设置为空密码
     fi
 
     if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
