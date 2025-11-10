@@ -61,6 +61,18 @@ configure_ssh_server() {
     mkdir -p "$HOME_DIR/.ssh"
     chmod 700 "$HOME_DIR/.ssh"
 
+    # 设置用户密码（如果提供了环境变量）
+    if [ -n "${SSH_PASSWORD:-}" ]; then
+        log_info "Setting SSH password from SSH_PASSWORD environment variable"
+        echo "vscode:${SSH_PASSWORD}" | run_as_root chpasswd
+    elif [ -n "${VSCODE_PASSWORD:-}" ]; then
+        log_info "Setting SSH password from VSCODE_PASSWORD environment variable"
+        echo "vscode:${VSCODE_PASSWORD}" | run_as_root chpasswd
+    else
+        log_info "No password provided, using empty password (default)"
+        # 确保 vscode 用户有空密码（已在 Dockerfile 中设置）
+    fi
+
     if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
         printf '%s\n' "$SSH_PUBLIC_KEY" > "$HOME_DIR/.ssh/authorized_keys"
         chmod 600 "$HOME_DIR/.ssh/authorized_keys"

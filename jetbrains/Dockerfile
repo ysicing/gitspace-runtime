@@ -96,6 +96,10 @@ RUN mkdir -p /home/vscode/.cache/JetBrains \
     && chown -R vscode:vscode /home/vscode/.cache /home/vscode/.config /home/vscode/.local /home/vscode/.jetbrains-ide /home/vscode/.ssh \
     && chmod 700 /home/vscode/.ssh
 
+# 设置 vscode 用户密码为空（允许无密码 SSH 登录）
+# 注意：这是开发环境配置，生产环境应使用 SSH key
+RUN passwd -d vscode
+
 # 设置 IDE 路径环境变量
 ENV JETBRAINS_IDE_DIR=/opt/jetbrains
 ENV DEFAULT_IDE_PATH=/opt/jetbrains

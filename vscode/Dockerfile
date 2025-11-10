@@ -72,6 +72,10 @@ RUN mkdir -p /home/vscode/.ssh \
     && chown -R vscode:vscode /home/vscode/.ssh /home/vscode/.vscode-server \
     && chmod 700 /home/vscode/.ssh
 
+# 设置 vscode 用户密码为空（允许无密码 SSH 登录）
+# 注意：这是开发环境配置，生产环境应使用 SSH key
+RUN passwd -d vscode
+
 # 切换到 vscode 用户（SSH 会以 vscode 用户身份运行）
 USER vscode
 
