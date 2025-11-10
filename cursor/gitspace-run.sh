@@ -174,8 +174,32 @@ main() {
     # 第0步：确保 HOME 目录权限正确
     log_info "Step 0/4: Ensuring HOME directory permissions..."
     run_as_root mkdir -p "$HOME_DIR"
-    run_as_root chown -R vscode:vscode "$HOME_DIR"
-    log_info "HOME directory permissions set correctly"
+
+    # 动态获取 vscode 用户的实际 UID/GID
+    local desired_uid desired_gid
+    desired_uid=$(id -u vscode 2>/dev/null || echo "1000")
+    desired_gid=$(id -g vscode 2>/dev/null || echo "1000")
+
+    local current_uid current_gid
+    current_uid=$(stat -c %u "$HOME_DIR" 2>/dev/null || echo "")
+    current_gid=$(stat -c %g "$HOME_DIR" 2>/dev/null || echo "")
+
+    if [ "$current_uid" != "$desired_uid" ] || [ "$current_gid" != "$desired_gid" ]; then
+        if [ "$HOME_DIR" = "/home/vscode" ] && [ -d "$HOME_DIR" ]; then
+            # 安全检查：确保不是符号链接
+            if [ ! -L "$HOME_DIR" ]; then
+                log_info "Fixing ownership of $HOME_DIR (current: ${current_uid:-unknown}:${current_gid:-unknown}, expected: $desired_uid:$desired_gid)"
+                run_as_root chown -R vscode:vscode "$HOME_DIR"
+                log_info "HOME directory permissions set correctly"
+            else
+                log_error "$HOME_DIR is a symbolic link, skipping chown for safety"
+            fi
+        else
+            log_info "HOME_DIR is $HOME_DIR (non-standard), skipping automatic chown"
+        fi
+    else
+        log_info "HOME directory permissions already correct ($desired_uid:$desired_gid)"
+    fi
 
     log_info "Step 1/4: Setting up Git credentials..."
     setup_git_credentials

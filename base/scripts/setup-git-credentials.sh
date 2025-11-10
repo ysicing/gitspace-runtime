@@ -6,14 +6,41 @@ log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"; }
 log_error() { echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $*" >&2; }
 
 setup_git_credentials() {
-    # 设置 Git 用户信息（总是执行，使用环境变量或默认值）
-    local git_user_name="${GIT_USER_NAME:-gitspace-user}"
-    local git_user_email="${GIT_USER_EMAIL:-gitspace-user@gitspace.local}"
+    # 设置 Git 用户信息（仅在未配置或显式提供变量时执行）
+    local default_git_user_name="gitspace-user"
+    local default_git_user_email="gitspace-user@gitspace.local"
+    local current_git_user_name current_git_user_email
+    local desired_git_user_name=""
+    local desired_git_user_email=""
 
-    git config --global user.name "$git_user_name"
-    git config --global user.email "$git_user_email"
-    log_info "Git user.name set to: $git_user_name"
-    log_info "Git user.email set to: $git_user_email"
+    current_git_user_name=$(git config --global user.name 2>/dev/null || true)
+    current_git_user_email=$(git config --global user.email 2>/dev/null || true)
+
+    if [ -n "${GIT_USER_NAME:-}" ]; then
+        desired_git_user_name="$GIT_USER_NAME"
+    elif [ -z "$current_git_user_name" ]; then
+        desired_git_user_name="$default_git_user_name"
+    fi
+
+    if [ -n "${GIT_USER_EMAIL:-}" ]; then
+        desired_git_user_email="$GIT_USER_EMAIL"
+    elif [ -z "$current_git_user_email" ]; then
+        desired_git_user_email="$default_git_user_email"
+    fi
+
+    if [ -n "$desired_git_user_name" ] && [ "$current_git_user_name" != "$desired_git_user_name" ]; then
+        git config --global user.name "$desired_git_user_name"
+        log_info "Git user.name set to: $desired_git_user_name"
+    else
+        log_info "Git user.name already set to: ${current_git_user_name:-<unset>}"
+    fi
+
+    if [ -n "$desired_git_user_email" ] && [ "$current_git_user_email" != "$desired_git_user_email" ]; then
+        git config --global user.email "$desired_git_user_email"
+        log_info "Git user.email set to: $desired_git_user_email"
+    else
+        log_info "Git user.email already set to: ${current_git_user_email:-<unset>}"
+    fi
 
     # 设置 Git 凭证（如果提供）
     if [ -z "${GIT_USERNAME:-}" ] || [ -z "${GIT_PASSWORD:-}" ]; then

@@ -9,7 +9,7 @@ vars:
   GIT_COMMIT:
     sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
   PLATFORMS: linux/amd64
-  VSCODE_EXTENSIONS: "timonwong.shellcheck,shardulm94.trailing-spaces,gruntfuggly.todo-tree,editorconfig.editorconfig,vscode-icons-team.vscode-icons,ms-ceintl.vscode-language-pack-zh-hans,esbenp.prettier-vscode"
+  VSCODE_EXTENSIONS: "yzhang.markdown-all-in-one,ysicing.gaeaflow-welcome,editorconfig.editorconfig,timonwong.shellcheck,shardulm94.trailing-spaces,gruntfuggly.todo-tree,vscode-icons-team.vscode-icons,ms-ceintl.vscode-language-pack-zh-hans,esbenp.prettier-vscode,anthropic.claude-code,openai.chatgpt"
 
 tasks:
   default:
