@@ -85,10 +85,31 @@ configure_ssh_server() {
         log_info "No SSH public key provided; password authentication will be used"
     fi
 
+    # 根据 AccessType 配置 SSH 服务器认证方式
     if [ -f "/etc/ssh/sshd_config" ]; then
-        run_as_root sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
-        run_as_root sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config || true
-        run_as_root sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords yes/' /etc/ssh/sshd_config || true
+        case "${GITSPACE_ACCESS_TYPE:-user_credentials}" in
+            "ssh_key")
+                # SSH key 模式：禁用密码认证
+                log_info "Configuring SSH server for SSH key only authentication"
+                run_as_root sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' /etc/ssh/sshd_config || true
+                ;;
+            "combined")
+                # 混合模式：同时启用密码和 SSH key 认证
+                log_info "Configuring SSH server for combined authentication (password + SSH key)"
+                run_as_root sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords yes/' /etc/ssh/sshd_config || true
+                ;;
+            *)
+                # 默认为密码认证
+                log_info "Configuring SSH server for password authentication only"
+                run_as_root sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication no/' /etc/ssh/sshd_config || true
+                run_as_root sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords yes/' /etc/ssh/sshd_config || true
+                ;;
+        esac
         log_info "sshd_config updated successfully"
     else
         log_error "/etc/ssh/sshd_config not found"
