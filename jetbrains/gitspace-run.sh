@@ -78,7 +78,7 @@ configure_ssh_server() {
     fi
 
     if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
-        printf '%s\n' "$SSH_PUBLIC_KEY" > "$HOME_DIR/.ssh/authorized_keys"
+        printf '%s' "$SSH_PUBLIC_KEY" > "$HOME_DIR/.ssh/authorized_keys"
         chmod 600 "$HOME_DIR/.ssh/authorized_keys"
         log_info "SSH public key configured"
     else
