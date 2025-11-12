@@ -272,6 +272,12 @@ main() {
     log_info "Step 1/7: Setting up Git credentials..."
     setup_git_credentials
 
+    # 第1.5步：设置 zsh 配置
+    log_info "Step 1.5/7: Setting up zsh configuration..."
+    if [ -f /usr/local/gitspace/scripts/common/setup-zsh-config.sh ]; then
+        source /usr/local/gitspace/scripts/common/setup-zsh-config.sh
+    fi
+
     clone_repository_step
     configure_ssh_server
     start_ssh_server_background
