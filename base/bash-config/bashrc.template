@@ -1,0 +1,115 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# History settings
+HISTCONTROL=ignoreboth
+HISTSIZE=1000
+HISTFILESIZE=2000
+shopt -s histappend
+
+# Update window size after each command
+shopt -s checkwinsize
+
+# Make less more friendly for non-text input files
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# Set variable identifying the chroot you work in
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# Enable color support for ls and other tools
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# Colored GCC warnings and errors
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# Common aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Enable programmable completion features
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# Gitspace Custom PS1
+# Color codes
+COLOR_RESET='\[\033[0m\]'
+COLOR_USER='\[\033[01;32m\]'      # Green for user
+COLOR_HOST='\[\033[01;34m\]'      # Blue for host
+COLOR_PATH='\[\033[01;33m\]'      # Yellow for path
+COLOR_GIT='\[\033[01;35m\]'       # Magenta for git branch
+COLOR_SYMBOL='\[\033[01;36m\]'    # Cyan for prompt symbol
+
+# Git branch detection function
+parse_git_branch() {
+    local branch
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+    if [ -n "$branch" ]; then
+        echo " ($branch)"
+    fi
+}
+
+# Get short hostname function
+get_short_hostname() {
+    # Check if GITSPACE_PS1_HOSTNAME is set
+    if [ -n "${GITSPACE_PS1_HOSTNAME}" ]; then
+        echo "${GITSPACE_PS1_HOSTNAME}"
+    else
+        # Default: extract first 3 parts of hostname separated by dash
+        # Example: gitspace-lucid-lukecage-2xr3kr-dk0p7n-854b6b5668-k2ptt -> gitspace-lucid-lukecage
+        local hostname
+        hostname=$(hostname -s 2>/dev/null || hostname)
+
+        # If hostname starts with "gitspace-", extract first 3 dash-separated parts
+        if [[ "$hostname" =~ ^gitspace- ]]; then
+            echo "$hostname" | cut -d'-' -f1-3
+        else
+            # Fallback: use the hostname as-is or truncate if too long
+            if [ ${#hostname} -gt 20 ]; then
+                echo "${hostname:0:20}"
+            else
+                echo "$hostname"
+            fi
+        fi
+    fi
+}
+
+# Custom PS1 with Git branch support
+# Format: [user@host:path (git-branch)]$
+# You can customize hostname display by setting GITSPACE_PS1_HOSTNAME env var
+PS1="${COLOR_USER}\u${COLOR_RESET}"
+PS1+="@"
+PS1+="${COLOR_HOST}\$(get_short_hostname)${COLOR_RESET}"
+PS1+=":"
+PS1+="${COLOR_PATH}\w${COLOR_RESET}"
+PS1+="${COLOR_GIT}\$(parse_git_branch)${COLOR_RESET}"
+PS1+="${COLOR_SYMBOL}\$ ${COLOR_RESET}"
+
+# Export PS1
+export PS1
+
+# Environment variables for Gitspace
+export GITSPACE_ENV=true
+export EDITOR=nano
+
+# Add local bin to PATH
+export PATH="$HOME/.local/bin:$PATH"
