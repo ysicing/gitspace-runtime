@@ -67,9 +67,10 @@ RUN npm install -g \
     && gemini --version || echo "Gemini CLI installed"
 
 # 创建 vscode 用户（UID/GID: 1000，与 Docker 实现对齐）
+# 使用 zsh 作为默认 shell，与 root 用户保持一致
 RUN if ! id -u vscode > /dev/null 2>&1; then \
         groupadd -g 1000 vscode \
-        && useradd -m -u 1000 -g 1000 -s /bin/bash vscode \
+        && useradd -m -u 1000 -g 1000 -s /usr/bin/zsh vscode \
         && echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers; \
     fi
 

@@ -530,8 +530,8 @@ kubectl exec -n gitspace <pod> -- ls -la /workspaces
 ### 权限管理
 
 ```dockerfile
-# 创建非 root 用户
-RUN useradd -m -u 1000 -s /bin/bash vscode
+# 创建非 root 用户（使用 zsh 与 root 用户保持一致）
+RUN useradd -m -u 1000 -s /usr/bin/zsh vscode
 
 # 设置目录权限
 RUN chown -R vscode:vscode /home/vscode /usr/local/gitspace
