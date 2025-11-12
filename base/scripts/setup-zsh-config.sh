@@ -12,6 +12,18 @@ log_info() {
     echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"
 }
 
+# 权限提升函数
+run_as_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        log_info "Command requires root privileges but sudo is unavailable: $*"
+        return 1
+    fi
+}
+
 # 检查是否已初始化（幂等性）
 if [ -f "$MARKER_FILE" ]; then
     log_info "zsh config already initialized, skipping"
@@ -38,16 +50,25 @@ if [ ! -d "/opt/oh-my-zsh" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
+# 确保 HOME 目录存在且权限正确
+run_as_root mkdir -p "$HOME_DIR"
+
 # 如果用户还没有 .zshrc，则从模板创建
 if [ ! -f "$ZSHRC_FILE" ]; then
     log_info "Creating .zshrc from template"
-    cp "$ZSHRC_TEMPLATE" "$ZSHRC_FILE"
-    chmod 644 "$ZSHRC_FILE"
+
+    # 使用 root 权限复制文件，然后设置正确的所有者
+    run_as_root cp "$ZSHRC_TEMPLATE" "$ZSHRC_FILE"
+    run_as_root chown vscode:vscode "$ZSHRC_FILE"
+    run_as_root chmod 644 "$ZSHRC_FILE"
+
     log_info ".zshrc created successfully"
 else
     log_info ".zshrc already exists, keeping user's configuration"
 fi
 
 # 创建标记文件
-touch "$MARKER_FILE"
+run_as_root touch "$MARKER_FILE"
+run_as_root chown vscode:vscode "$MARKER_FILE"
 log_info "zsh configuration initialized"
+
