@@ -42,6 +42,11 @@ setup_git_credentials() {
         log_info "Git user.email already set to: ${current_git_user_email:-<unset>}"
     fi
 
+    # 禁用GPG签名 (Gitspace环境不需要GPG签名)
+    git config --global commit.gpgsign false
+    git config --global tag.gpgSign false
+    log_info "Git GPG signing disabled for Gitspace environment"
+
     # 设置 Git 凭证（如果提供）
     if [ -z "${GIT_USERNAME:-}" ] || [ -z "${GIT_PASSWORD:-}" ]; then
         log_info "No Git credentials provided, skipping credential setup"

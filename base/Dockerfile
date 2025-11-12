@@ -20,6 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 ENV LANGUAGE=C.UTF-8
+ENV TZ=Asia/Shanghai
 
 RUN echo "export LC_ALL=C.UTF-8" >> ~/.bashrc && \
     echo "export LANG=C.UTF-8" >> ~/.bashrc && \
@@ -31,9 +32,9 @@ RUN apt-get update && apt-get install -y \
     # 版本控制
     git git-lfs\
     # 网络工具
-    curl coreutils wget ca-certificates \
+    curl coreutils wget ca-certificates apt-transport-https \
     # 系统工具
-    sudo procps \
+    sudo procps net-tools nano iputils-ping dnsutils telnet traceroute iproute2 \
     # JSON 处理
     jq \
     # envsubst

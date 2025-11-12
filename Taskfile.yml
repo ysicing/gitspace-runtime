@@ -28,6 +28,7 @@ tasks:
           -t {{.REGISTRY}}:base-latest \
           -t {{.REGISTRY}}:base-{{.TIMESTAMP}} \
           -f base/Dockerfile \
+          --pull \
           --push \
           .
 
