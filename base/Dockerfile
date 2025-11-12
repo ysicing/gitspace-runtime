@@ -39,12 +39,15 @@ RUN apt-get update && apt-get install -y \
     jq \
     # envsubst
     gettext-base \
+    # zsh (默认 shell)
+    zsh \
     # 清理
     && git lfs install \
     && update-ca-certificates \
     && git --version \
     && git lfs --version \
     && curl --version \
+    && zsh --version \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -73,6 +76,28 @@ RUN if ! id -u vscode > /dev/null 2>&1; then \
         && useradd -m -u 1000 -g 1000 -s /usr/bin/zsh vscode \
         && echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers; \
     fi
+
+# 将 oh-my-zsh 安装到系统位置（不会被 PVC 覆盖）
+RUN mkdir -p /opt/oh-my-zsh \
+    && git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /opt/oh-my-zsh \
+    && chmod -R 755 /opt/oh-my-zsh \
+    && echo "✓ oh-my-zsh installed to /opt/oh-my-zsh"
+
+# 创建 zsh 自定义目录（在 COPY 之前创建）
+RUN mkdir -p /opt/zsh-custom/plugins /opt/zsh-custom/themes
+
+# 复制 zsh 安装脚本和配置文件
+COPY base/scripts/install-zsh-plugins.sh /tmp/install-zsh-plugins.sh
+COPY base/zsh-config/zshrc.template /opt/zshrc.template
+COPY base/zsh-theme/gaeaflow.zsh-theme /opt/zsh-custom/themes/gaeaflow.zsh-theme
+
+# 执行 zsh 插件安装脚本并设置权限
+RUN chmod +x /tmp/install-zsh-plugins.sh \
+    && /tmp/install-zsh-plugins.sh \
+    && rm /tmp/install-zsh-plugins.sh \
+    && chmod 644 /opt/zshrc.template \
+    && chmod 644 /opt/zsh-custom/themes/gaeaflow.zsh-theme \
+    && echo "✓ zsh configuration completed"
 
 # Git 全局配置
 RUN git config --system core.autocrlf input \
