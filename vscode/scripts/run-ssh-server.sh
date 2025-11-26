@@ -35,6 +35,13 @@ for KEY in $HOST_KEYS; do
     fi
 done
 
+# 开启 RSA Key 登录支持
+sudo tee /etc/ssh/sshd_config.d/enable_rsa_keys.conf > /dev/null << EOF
+HostKeyAlgorithms +ssh-rsa
+PubkeyAcceptedKeyTypes +ssh-rsa
+EOF
+
+
 # 确保 SSH 配置正确
 sudo sed -i "s/^#Port 22/Port ${SSH_PORT}/" /etc/ssh/sshd_config
 if ! grep -q "^Port ${SSH_PORT}" /etc/ssh/sshd_config; then
