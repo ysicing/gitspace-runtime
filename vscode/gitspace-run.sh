@@ -113,6 +113,12 @@ start_ssh_server() {
     log_info "Step 4/4: Starting SSH server on port ${SSH_PORT}..."
     run_as_root mkdir -p /var/run/sshd
 
+    # 开启 RSA Key 登录支持
+    sudo tee /etc/ssh/sshd_config.d/enable_rsa_keys.conf > /dev/null << EOF
+HostKeyAlgorithms +ssh-rsa
+PubkeyAcceptedKeyTypes +ssh-rsa
+EOF
+
     # 确保端口配置正确
     if [ -f "/etc/ssh/sshd_config" ]; then
         run_as_root sed -i "s/^#Port 22/Port ${SSH_PORT}/" /etc/ssh/sshd_config || true
