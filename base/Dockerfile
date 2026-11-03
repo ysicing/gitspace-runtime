@@ -48,8 +48,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Node.js 24.x LTS（使用 NodeSource）
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+# 安装当前最新 LTS Node.js（使用 NodeSource）
+RUN curl -fsSL --retry 3 https://deb.nodesource.com/setup_lts.x -o /tmp/setup-node.sh \
+    && bash /tmp/setup-node.sh \
+    && rm /tmp/setup-node.sh \
     && apt-get install -y nodejs \
     && node --version \
     && npm --version \
@@ -58,13 +60,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 
 # 安装 AI CLI 工具（全局安装）
 # 这些工具将在所有 IDE 镜像中可用
-RUN npm install -g \
-    @anthropic-ai/claude-code \
-    @openai/codex \
-    @google/gemini-cli \
-    && claude --version || echo "Claude Code installed" \
-    && codex --version || echo "Codex installed" \
-    && gemini --version || echo "Gemini CLI installed"
+RUN npm install -g --prefer-online \
+    @anthropic-ai/claude-code@latest \
+    @openai/codex@latest \
+    @google/gemini-cli@latest \
+    && claude --version \
+    && codex --version \
+    && gemini --version \
+    && npm cache clean --force
 
 # 创建 vscode 用户（UID/GID: 1000，与 Docker 实现对齐）
 RUN if ! id -u vscode > /dev/null 2>&1; then \

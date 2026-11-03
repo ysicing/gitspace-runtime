@@ -23,9 +23,23 @@
 
 JetBrains IDE 安装在 `/opt/jetbrains`。启动时为 Gitness Gateway 的固定路径 `$HOME/.cache/JetBrains/RemoteDev/dist/$IDE_TYPE` 建立链接；已有真实目录不会被覆盖。
 
+## 依赖更新
+
+每次镜像构建都获取安装时的最新版本：
+
+- 基础系统使用 `mcr.microsoft.com/devcontainers/base:ubuntu`，apt 安装发行版仓库中的最新软件包。
+- Node.js 使用 NodeSource 的 `setup_lts.x`，自动跟随最新 LTS。
+- Claude Code、Codex CLI、Gemini CLI 使用 npm 的 `@latest`。
+- code-server 使用官方安装脚本获取最新稳定版。
+- JetBrains 使用各产品的 `latest` 下载入口，IntelliJ IDEA / PyCharm 使用统一发行版产品代码 `IIU` / `PCP`。
+
+Taskfile 的所有镜像构建都带 `--pull --no-cache`，重新拉取基础镜像并执行安装，避免安装层缓存保留旧版本。构建时会输出实际安装版本，安装失败立即中止。重建会重新下载软件；已有容器中的工具通过重新构建、发布和更新容器完成升级。
+
+JetBrains 远程开发及专业功能仍受对应产品的授权条款限制。
+
 ## 本地验证
 
-需要 Bash、Git、jq、Python 3 和 ssh-keygen，ShellCheck 可选。
+需要 Bash、Git、jq、Python 3 和 ssh-keygen，ShellCheck 可选。安装 Task 后还会验证实际构建命令、缓存刷新及 base 失败时的中止行为；未安装时跳过这部分测试。
 
 ```bash
 task test
@@ -38,6 +52,8 @@ bash verify-consistency.sh
 ## 构建与推送
 
 **现有 `build-*` 任务均带 `--push`，会直接推送镜像。** 基础脚本变化后先发布 base，再依次重建需要的子镜像。单独执行子镜像任务不会自动重建 base。
+
+GitHub Actions 先运行检查，再重新构建并发布 base，最后以最多两个并发任务构建各 IDE。IDE 使用当轮刚发布的 base digest，共享脚本、依赖和 Taskfile 变化会触发完整流程；多轮工作流串行发布。
 
 ```bash
 task --list
@@ -58,13 +74,13 @@ task build-vscode-web REGISTRY=registry.example.com/team/gitspace-runtime
 task build-vscode-web VSCODE_EXTENSIONS=ms-python.python,golang.go
 ```
 
-子 Dockerfile 支持 `BASE_IMAGE`。默认目标平台是 `linux/amd64`；JetBrains 下载步骤目前使用 Linux x64 安装包，不应直接将它用于 ARM 构建。
+base 同时发布 `base-latest`、`base-<构建时间>` 和 `base-<commit>` 标签，CI 使用完整 commit SHA。子 Dockerfile 和 Taskfile 均支持 `BASE_IMAGE`。默认目标平台是 `linux/amd64`；JetBrains 下载步骤目前使用 Linux x64 安装包，不应直接将它用于 ARM 构建。
 
 仅在本机构建而不推送时，可直接使用 Docker：
 
 ```bash
-docker build -f base/Dockerfile -t gitspace-runtime:base-local .
-docker build -f vscode-web/Dockerfile \
+docker build --pull --no-cache -f base/Dockerfile -t gitspace-runtime:base-local .
+docker build --no-cache -f vscode-web/Dockerfile \
   --build-arg BASE_IMAGE=gitspace-runtime:base-local \
   -t gitspace-runtime:web-local .
 ```

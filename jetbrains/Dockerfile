@@ -10,9 +10,9 @@
 # 基于 base 镜像，添加 SSH Server + JetBrains IDE 支持
 #
 # 支持的 IDE 产品代码：
-# - IIC: IntelliJ IDEA Community (默认)
+# - IIU: IntelliJ IDEA (默认)
 # - GO: GoLand
-# - PCC: PyCharm Community
+# - PCP: PyCharm
 # - WS: WebStorm
 # - CL: CLion
 # - PS: PHPStorm
@@ -31,7 +31,7 @@ LABEL description="Gitspace JetBrains image with SSH server and remote-dev-serve
 # IDE 产品配置
 # IDE_PRODUCT_CODE: JetBrains 产品代码（用于下载）
 # IDE_NAME: IDE 名称（用于标识）
-ARG IDE_PRODUCT_CODE=IIC
+ARG IDE_PRODUCT_CODE=IIU
 ARG IDE_NAME=intellij
 
 USER root
@@ -65,10 +65,11 @@ RUN mkdir -p /var/run/sshd /etc/ssh
 RUN mkdir -p /opt/jetbrains /tmp/jetbrains-download && \
     # 下载指定产品的最新版本
     echo "Downloading JetBrains IDE: ${IDE_NAME} (code: ${IDE_PRODUCT_CODE})" && \
-    curl -fsSL "https://download.jetbrains.com/product?code=${IDE_PRODUCT_CODE}&latest&distribution=linux" \
+    curl -fsSL --retry 3 "https://download.jetbrains.com/product?code=${IDE_PRODUCT_CODE}&latest&distribution=linux" \
     -o /tmp/jetbrains-download/ide.tar.gz && \
     # 解压到 /opt/jetbrains
     tar -xzf /tmp/jetbrains-download/ide.tar.gz -C /opt/jetbrains --strip-components=1 && \
+    test -x /opt/jetbrains/bin/remote-dev-server.sh && \
     # 清理下载文件
     rm -rf /tmp/jetbrains-download && \
     # 设置权限

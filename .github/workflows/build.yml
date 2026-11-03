@@ -1,0 +1,109 @@
+name: Build Runtime Images
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'base/**'
+      - 'vscode/**'
+      - 'vscode-web/**'
+      - 'cursor/**'
+      - 'jetbrains/**'
+      - 'tests/**'
+      - 'Taskfile.yml'
+      - 'verify-consistency.sh'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: gitspace-runtime-images
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io/ysicing/gitspace-runtime
+
+jobs:
+  verify:
+    name: Verify Runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: arduino/setup-task@v3
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check scripts and contracts
+        run: task test
+
+  base:
+    name: Build Base Image
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@v3
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish base
+        id: build
+        run: |
+          task build-base GIT_COMMIT="${GITHUB_SHA}"
+          digest="$(docker buildx imagetools inspect "${REGISTRY}:base-${GITHUB_SHA}" --format '{{ .Manifest.Digest }}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=${REGISTRY}@${digest}" >> "$GITHUB_OUTPUT"
+
+  ide:
+    name: Build ${{ matrix.image }}
+    needs: base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        image:
+          - vscode
+          - vscode-web
+          - cursor
+          - intellij
+          - goland
+          - pycharm
+          - webstorm
+          - clion
+          - phpstorm
+          - rubymine
+          - rider
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-task@v3
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish IDE
+        env:
+          IMAGE: ${{ matrix.image }}
+          BASE_IMAGE: ${{ needs.base.outputs.image }}
+        run: task "build-${IMAGE}" BASE_IMAGE="${BASE_IMAGE}" GIT_COMMIT="${GITHUB_SHA}"

@@ -32,7 +32,9 @@ RUN apt-get update && apt-get install -y \
 
 # ✅ 预装 code-server（在镜像构建时安装最新版，避免运行时下载）
 RUN echo "Installing latest code-server..." \
-    && curl -fsSL https://code-server.dev/install.sh | sh \
+    && curl -fsSL --retry 3 https://code-server.dev/install.sh -o /tmp/install-code-server.sh \
+    && sh /tmp/install-code-server.sh \
+    && rm /tmp/install-code-server.sh \
     && code-server --version \
     && echo "✓ code-server pre-installed successfully"
 

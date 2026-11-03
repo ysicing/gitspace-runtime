@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   REGISTRY: ghcr.io/ysicing/gitspace-runtime
+  BASE_IMAGE: '{{.REGISTRY}}:base-latest'
   TIMESTAMP:
     sh: date -u +'%Y%m%d%H'
   BUILD_DATE:
@@ -32,8 +33,10 @@ tasks:
           --build-arg VCS_REF={{.GIT_COMMIT}} \
           -t {{.REGISTRY}}:base-latest \
           -t {{.REGISTRY}}:base-{{.TIMESTAMP}} \
+          -t {{.REGISTRY}}:base-{{.GIT_COMMIT}} \
           -f base/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -46,12 +49,13 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg VSCODE_EXTENSIONS="{{.VSCODE_EXTENSIONS}}" \
           -t {{.REGISTRY}}:vscode-latest \
           -t {{.REGISTRY}}:vscode-{{.TIMESTAMP}} \
           -f vscode/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -64,12 +68,13 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg VSCODE_EXTENSIONS="{{.VSCODE_EXTENSIONS}}" \
           -t {{.REGISTRY}}:vscode-web-latest \
           -t {{.REGISTRY}}:vscode-web-{{.TIMESTAMP}} \
           -f vscode-web/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -82,11 +87,12 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           -t {{.REGISTRY}}:cursor-latest \
           -t {{.REGISTRY}}:cursor-{{.TIMESTAMP}} \
           -f cursor/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -99,13 +105,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
-          --build-arg IDE_PRODUCT_CODE=IIC \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
+          --build-arg IDE_PRODUCT_CODE=IIU \
           --build-arg IDE_NAME=intellij \
           -t {{.REGISTRY}}:intellij-latest \
           -t {{.REGISTRY}}:intellij-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -118,18 +125,19 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=GO \
           --build-arg IDE_NAME=goland \
           -t {{.REGISTRY}}:goland-latest \
           -t {{.REGISTRY}}:goland-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
   build-pycharm:
-    desc: 构建 PyCharm Community 镜像
+    desc: 构建 PyCharm 镜像
 
     cmds:
       - |
@@ -137,13 +145,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
-          --build-arg IDE_PRODUCT_CODE=PCC \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
+          --build-arg IDE_PRODUCT_CODE=PCP \
           --build-arg IDE_NAME=pycharm \
           -t {{.REGISTRY}}:pycharm-latest \
           -t {{.REGISTRY}}:pycharm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -156,13 +165,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=WS \
           --build-arg IDE_NAME=webstorm \
           -t {{.REGISTRY}}:webstorm-latest \
           -t {{.REGISTRY}}:webstorm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -175,13 +185,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=CL \
           --build-arg IDE_NAME=clion \
           -t {{.REGISTRY}}:clion-latest \
           -t {{.REGISTRY}}:clion-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -194,13 +205,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=PS \
           --build-arg IDE_NAME=phpstorm \
           -t {{.REGISTRY}}:phpstorm-latest \
           -t {{.REGISTRY}}:phpstorm-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -213,13 +225,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=RM \
           --build-arg IDE_NAME=rubymine \
           -t {{.REGISTRY}}:rubymine-latest \
           -t {{.REGISTRY}}:rubymine-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
@@ -232,13 +245,14 @@ tasks:
           --platform {{.PLATFORMS}} \
           --build-arg BUILD_DATE={{.BUILD_DATE}} \
           --build-arg VCS_REF={{.GIT_COMMIT}} \
-          --build-arg BASE_IMAGE={{.REGISTRY}}:base-latest \
+          --build-arg BASE_IMAGE={{.BASE_IMAGE}} \
           --build-arg IDE_PRODUCT_CODE=RD \
           --build-arg IDE_NAME=rider \
           -t {{.REGISTRY}}:rider-latest \
           -t {{.REGISTRY}}:rider-{{.TIMESTAMP}} \
           -f jetbrains/Dockerfile \
           --pull \
+          --no-cache \
           --push \
           .
 
