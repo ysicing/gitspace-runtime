@@ -11,7 +11,8 @@
 # - Cursor: 端口 8098
 # - Windsurf: 端口 8099
 
-FROM ghcr.io/ysicing/gitspace-runtime:base-latest
+ARG BASE_IMAGE=ghcr.io/ysicing/gitspace-runtime:base-latest
+FROM ${BASE_IMAGE}
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace Cursor/Windsurf image with SSH server for Remote-SSH connection"
@@ -29,25 +30,11 @@ RUN apt-get update && apt-get install -y \
     openssh-server \
     # 清理
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/ssh/ssh_host_*
 
 # 创建 SSH 运行目录
 RUN mkdir -p /var/run/sshd /etc/ssh
-
-# 配置 SSH Server
-# - AllowUsers: 只允许 vscode 用户连接
-# - PasswordAuthentication: 支持密码认证（开发环境）
-# - PubkeyAuthentication: 支持 SSH key 认证（推荐）
-# - PermitEmptyPasswords: 允许空密码（简化开发）
-# 注意：端口由环境变量 SSH_PORT 在运行时指定（Cursor: 8098, Windsurf: 8099）
-RUN echo "AllowUsers vscode" >> /etc/ssh/sshd_config \
-    && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
-    && echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config \
-    && echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config \
-    && echo "AuthorizedKeysFile .ssh/authorized_keys" >> /etc/ssh/sshd_config
-
-# 生成 SSH Host Keys
-RUN ssh-keygen -A
 
 # 复制 Cursor/Windsurf 专用脚本
 COPY cursor/scripts/*.sh /usr/local/gitspace/scripts/cursor/
@@ -64,8 +51,6 @@ RUN mkdir -p /home/vscode/.ssh \
     && chown -R vscode:vscode /home/vscode/.ssh /home/vscode/.cursor-server /home/vscode/.windsurf-server \
     && chmod 700 /home/vscode/.ssh
 
-# 设置 vscode 用户密码为空（允许无密码 SSH 登录）
-# 注意：这是开发环境配置，生产环境应使用 SSH key
 RUN passwd -d vscode
 
 # 切换到 vscode 用户（SSH 会以 vscode 用户身份运行）

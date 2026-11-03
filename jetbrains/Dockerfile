@@ -22,7 +22,8 @@
 # 使用方法：
 # docker build --build-arg IDE_PRODUCT_CODE=GO --build-arg IDE_NAME=goland -t goland:latest .
 
-FROM ghcr.io/ysicing/gitspace-runtime:base-latest
+ARG BASE_IMAGE=ghcr.io/ysicing/gitspace-runtime:base-latest
+FROM ${BASE_IMAGE}
 
 LABEL maintainer="Gitness Team"
 LABEL description="Gitspace JetBrains image with SSH server and remote-dev-server support"
@@ -53,25 +54,11 @@ RUN apt-get update && apt-get install -y \
     lsof curl \
     # 清理
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/ssh/ssh_host_*
 
 # 创建 SSH 运行目录
 RUN mkdir -p /var/run/sshd /etc/ssh
-
-# 配置 SSH Server
-# - AllowUsers: 只允许 vscode 用户连接
-# - PasswordAuthentication: 支持密码认证（开发环境）
-# - PubkeyAuthentication: 支持 SSH key 认证（推荐）
-# - PermitEmptyPasswords: 允许空密码（简化开发）
-# 注意：端口由环境变量 SSH_PORT 在运行时指定（不同 IDE 使用不同端口）
-RUN echo "AllowUsers vscode" >> /etc/ssh/sshd_config \
-    && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
-    && echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config \
-    && echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config \
-    && echo "AuthorizedKeysFile .ssh/authorized_keys" >> /etc/ssh/sshd_config
-
-# 生成 SSH Host Keys
-RUN ssh-keygen -A
 
 # 预安装 JetBrains IDE（根据 IDE_PRODUCT_CODE 下载对应产品）
 # 参考 JetBrains 官方下载 API
@@ -96,8 +83,6 @@ RUN mkdir -p /home/vscode/.cache/JetBrains \
     && chown -R vscode:vscode /home/vscode/.cache /home/vscode/.config /home/vscode/.local /home/vscode/.jetbrains-ide /home/vscode/.ssh \
     && chmod 700 /home/vscode/.ssh
 
-# 设置 vscode 用户密码为空（允许无密码 SSH 登录）
-# 注意：这是开发环境配置，生产环境应使用 SSH key
 RUN passwd -d vscode
 
 # 设置 IDE 路径环境变量

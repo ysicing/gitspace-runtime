@@ -1,242 +1,110 @@
-# Gitspace Runtime 多镜像构建工具
+# Gitspace Runtime
 
-Gitspace 的 Kubernetes 运行时镜像，采用多镜像策略为不同 IDE 提供专用优化镜像，支持 Taskfile 自动化构建和多种容器 Registry。
+为 Gitness 的 Kubernetes 开发环境提供预装 IDE 镜像，统一通过 `/usr/local/bin/gitspace-run.sh` 启动。工作区 PVC 挂载到 `/home/vscode`，仓库位于 `/home/vscode/$REPO_NAME`。
 
-## 🚀 5 分钟快速开始
+## 镜像
 
-### 构建镜像
+默认构建仓库为 `ghcr.io/ysicing/gitspace-runtime`。
+
+| 标签 | 用途 | 默认端口 |
+| --- | --- | --- |
+| `base-latest` | 通用工具、Git、Node.js 和共享脚本 | — |
+| `vscode-latest` | VSCode Desktop，通过 Remote-SSH 连接 | 8088 |
+| `vscode-web-latest` | 浏览器 code-server | 8089 |
+| `cursor-latest` | Cursor / Windsurf，通过 Remote-SSH 连接 | 8098 / 8099 |
+| `intellij-latest` | IntelliJ IDEA，通过 JetBrains Gateway 连接 | 8090 |
+| `goland-latest` | GoLand | 8091 |
+| `pycharm-latest` | PyCharm | 8092 |
+| `webstorm-latest` | WebStorm | 8093 |
+| `clion-latest` | CLion | 8094 |
+| `phpstorm-latest` | PHPStorm | 8095 |
+| `rubymine-latest` | RubyMine | 8096 |
+| `rider-latest` | Rider | 8097 |
+
+JetBrains IDE 安装在 `/opt/jetbrains`。启动时为 Gitness Gateway 的固定路径 `$HOME/.cache/JetBrains/RemoteDev/dist/$IDE_TYPE` 建立链接；已有真实目录不会被覆盖。
+
+## 本地验证
+
+需要 Bash、Git、jq、Python 3 和 ssh-keygen，ShellCheck 可选。
 
 ```bash
-# 查看所有可用任务
-task --list
-
-# 查看项目信息
-task info
-
-# 构建所有镜像
-task build-all
-
-# 推送到镜像仓库
-task push-all
+task test
+# 或
+bash verify-consistency.sh
 ```
 
-## 📋 主要任务列表
+测试使用临时 HOME、本地 Git 仓库和模拟服务，不连接集群、不构建或推送镜像。真实 IDE、sshd 登录和 Kubernetes PVC 行为仍需部署后验证。
 
-| 任务 | 说明 |
-|------|------|
-| `task` | 显示所有可用任务 |
-| `task info` | 查看项目信息和配置 |
-| **构建任务** | |
-| `task build-base` | 构建基础镜像 |
-| `task build-vscode` | 构建VSCode镜像（默认包含扩展） |
-| `task build-jetbrains` | 构建JetBrains镜像 |
-| `task build-cursor` | 构建Cursor镜像 |
-| `task build-all` | 构建所有镜像 |
-| **推送任务** | |
-| `task push-base` | 推送基础镜像 |
-| `task push-vscode` | 推送VSCode镜像 |
-| `task push-all` | 推送所有镜像 |
-| **测试任务** | |
-| `task test-base` | 测试基础镜像 |
-| `task test-vscode` | 测试VSCode镜像 |
-| `task test-all` | 测试所有镜像 |
-| **多平台构建** | |
-| `task buildx-setup` | 设置buildx环境 |
-| `task buildx-all` | 多平台构建并推送 |
-| **开发工具** | |
-| `task shell-base` | 进入基础镜像shell |
-| `task shell-vscode` | 进入VSCode镜像shell |
-| `task clean` | 清理本地镜像 |
-| `task prune` | 清理构建缓存 |
+## 构建与推送
 
-## 📚 详细使用指南
-
-### 构建镜像
+**现有 `build-*` 任务均带 `--push`，会直接推送镜像。** 基础脚本变化后先发布 base，再依次重建需要的子镜像。单独执行子镜像任务不会自动重建 base。
 
 ```bash
-# 查看所有任务和说明
 task --list
-
-# 构建所有镜像
-task build-all
-
-# 单独构建特定镜像
-task build-base        # 构建基础镜像
-task build-vscode      # 构建VSCode镜像（自动依赖base）
-task build-jetbrains   # 构建JetBrains镜像
-task build-cursor      # 构建Cursor镜像
-
-# 自定义VSCode扩展列表
-VSCODE_EXTENSIONS="ms-python.python,golang.go" task build-vscode
-
-# 多平台构建（amd64 + arm64）
-task buildx-all
-```
-
-## 🎯 VSCode 扩展预装指南
-
-### 默认预装扩展
-
-所有 VSCode 镜像默认包含以下扩展：
-
-```bash
+task build-base
+task build-vscode-web
 task build-vscode
+task build-cursor
+task build-goland
+
+# 按顺序构建并推送全部镜像
+task build-all
+
+# 使用自己的仓库
+task build-base REGISTRY=registry.example.com/team/gitspace-runtime
+task build-vscode-web REGISTRY=registry.example.com/team/gitspace-runtime
+
+# 自定义 Web 扩展
+task build-vscode-web VSCODE_EXTENSIONS=ms-python.python,golang.go
 ```
 
-预装常用插件：
-- **Python** (`ms-python.python`) - Python 语言支持
-- **TypeScript Next** (`ms-vscode.vscode-typescript-next`) - TypeScript 支持
-- **Prettier** (`esbenp.prettier-vscode`) - 代码格式化
-- **JSON** (`ms-vscode.vscode-json`) - JSON 文件支持
+子 Dockerfile 支持 `BASE_IMAGE`。默认目标平台是 `linux/amd64`；JetBrains 下载步骤目前使用 Linux x64 安装包，不应直接将它用于 ARM 构建。
 
-### 自定义扩展
-
-#### 方式一：环境变量
+仅在本机构建而不推送时，可直接使用 Docker：
 
 ```bash
-VSCODE_EXTENSIONS="ms-python.python,golang.go" task build-vscode
+docker build -f base/Dockerfile -t gitspace-runtime:base-local .
+docker build -f vscode-web/Dockerfile \
+  --build-arg BASE_IMAGE=gitspace-runtime:base-local \
+  -t gitspace-runtime:web-local .
 ```
 
-#### 方式二：修改 Taskfile.yml
+Web 镜像支持构建时预装扩展。Desktop 镜像中的 `VSCODE_EXTENSIONS` 仅创建扩展目录，实际扩展由 Remote-SSH 客户端安装。
 
-编辑 `Taskfile.yml`，修改 `VSCODE_EXTENSIONS` 变量：
+## Gitness 配置
 
-```yaml
-vars:
-  VSCODE_EXTENSIONS: "扩展1,扩展2,扩展3"
-```
-
-### 预装扩展示例
+Gitness 默认镜像仓库与本项目默认构建仓库不同，发布后需配置实际地址，例如：
 
 ```bash
-# Python 开发版
-VSCODE_EXTENSIONS="ms-python.python,ms-python.pylint" task build-vscode
-
-# Go 开发版
-VSCODE_EXTENSIONS="golang.go,ms-vscode.vscode-json" task build-vscode
-
-# 前端开发版
-VSCODE_EXTENSIONS="esbenp.prettier-vscode,bradlc.vscode-tailwindcss" task build-vscode
+GITNESS_KUBERNETES_GITSPACE_IMAGE_VSCODE=ghcr.io/ysicing/gitspace-runtime:vscode-latest
+GITNESS_KUBERNETES_GITSPACE_IMAGE_VSCODE_WEB=ghcr.io/ysicing/gitspace-runtime:vscode-web-latest
+GITNESS_KUBERNETES_GITSPACE_IMAGE_CURSOR=ghcr.io/ysicing/gitspace-runtime:cursor-latest
+GITNESS_KUBERNETES_GITSPACE_IMAGE_GOLAND=ghcr.io/ysicing/gitspace-runtime:goland-latest
 ```
 
-## 🏗️ 镜像架构
+其余 JetBrains 产品使用对应的 `GITNESS_KUBERNETES_GITSPACE_IMAGE_<IDE>` 配置项。Gitness 为实际 IDE 端口配置 TCP startup/readiness 探针，启动探针允许约 10 分钟完成克隆和初始化；未监听端口前 Pod 不就绪。
 
-```
-ghcr.io/ysicing/gitspace-runtime:base-latest (250MB)
-  ├── Ubuntu 24.04 基础镜像
-  ├── 通用工具: git, curl, wget, jq
-  ├── vscode 用户 (UID: 1000, GID: 1000)
-  └── 通用脚本: Git 凭证管理、仓库克隆
+## 启动契约
 
-ghcr.io/ysicing/gitspace-runtime:vscode-latest (500MB)
-  ├── 继承自 base
-  ├── VSCode 依赖: build-essential, python3, nodejs, npm
-  ├── VSCode Server 安装和配置脚本
-  ├── code-server 自动安装
-  └── 用途: Web 浏览器访问（端口 8089）
+| 变量 | 含义 |
+| --- | --- |
+| `HOME` / `WORKSPACE_DIR` | Gitness 统一设置为 `/home/vscode` |
+| `REPO_URL` / `REPO_NAME` / `BRANCH` | 克隆地址、HOME 下的仓库名和初次克隆分支 |
+| `IDE_TYPE` | Gitness IDE 标识，如 `vs_code`、`vs_code_web`、`goland` |
+| `IDE_PORT` / `SSH_PORT` | Web / SSH 监听端口，由 Gitness 指定 |
+| `GITSPACE_ACCESS_KEY` | Web 登录密码；SSH 密码模式的用户密码 |
+| `GITSPACE_ACCESS_TYPE` | `user_credentials`、`ssh_key` 或 `combined` |
+| `SSH_PUBLIC_KEY` | SSH 公钥，可以包含多行 |
+| `GIT_USER_NAME` / `GIT_USER_EMAIL` | Git 提交身份 |
+| `GITSPACE_POST_CREATE_COMMAND` | 内部变量，保留原始 JSON 的 postCreateCommand |
+| `GITSPACE_POST_START_COMMAND` | 内部变量，保留原始 JSON 的 postStartCommand |
 
-ghcr.io/ysicing/gitspace-runtime:vscode-desktop-latest (550MB)
-  ├── 继承自 base
-  ├── VSCode 依赖: build-essential, python3, nodejs, npm
-  ├── ✅ OpenSSH Server 预装（端口 8088）
-  ├── SSH 配置: 密码认证/公钥认证
-  └── 用途: VSCode Desktop Remote-SSH 连接
+Web 必须提供非空访问密钥，code-server 开启密码认证。密码通过进程环境传递，不写入 code-server 配置文件或启动日志。SSH 密码模式必须提供密钥，公钥模式必须提供公钥，`combined` 允许两种方式分别登录；所有模式均禁止空密码。
 
-ghcr.io/ysicing/gitspace-runtime:jetbrains-latest (800MB)
-  ├── 继承自 base
-  ├── JetBrains 依赖: Java 17, X11 库等
-  ├── 支持 IntelliJ IDEA, PyCharm, GoLand, WebStorm 等
-  └── IDE 运行时下载和配置
+SSH Host Key 在首次启动时生成，保存在 PVC 的 `$HOME/.gitspace/ssh-host-keys` 中，重启复用。升级旧环境后首次连接会看到新的 SSH 主机指纹，应核实后更新客户端 known_hosts。
 
-ghcr.io/ysicing/gitspace-runtime:cursor-latest (550MB)
-  ├── 继承自 vscode
-  ├── Cursor/Windsurf 特定配置
-  └── 扩展和主题预配置
+已有仓库在重启时仅更新 origin，以同步新的仓库凭证；保留当前分支、未提交修改和未跟踪文件，不自动 pull/reset。每次启动不再递归 chown 整个 HOME；旧数据内部若已有错误权限，应单独修复。
 
-ghcr.io/ysicing/gitspace-runtime:latest → vscode-latest (默认镜像)
-```
+Gitness 传递 devcontainer 普通容器环境变量，重复项以最后一项为准；仓库、访问凭证、端口、HOME 和 `GITSPACE_*` 内部变量由平台控制。postCreateCommand 在仓库中首次成功后记录完成标记，失败可重试；postStartCommand 每次启动执行。支持字符串、参数数组和并行对象形式，任一命令失败都会阻止 IDE 启动。完成标记位于 Git 目录的 `gitspace-post-create-complete`。
 
-## 📦 构建的镜像列表
-
-1. **base** - 基础镜像，包含通用工具
-2. **vscode** - VSCode Web 镜像（通过浏览器访问）
-3. **vscode-desktop** - VSCode Desktop 镜像（通过 Remote-SSH 连接）
-4. **jetbrains** - JetBrains IDE 镜像（基于 base）
-5. **cursor** - Cursor 镜像（基于 vscode）
-
-## 📋 镜像标签规则
-
-镜像采用以下标签格式：
-
-- **时间戳标签**: `ghcr.io/ysicing/gitspace-runtime:{镜像类型}-{时间戳}`
-  - 示例: `ghcr.io/ysicing/gitspace-runtime:vscode-20251031-154033`
-- **Latest标签**: `ghcr.io/ysicing/gitspace-runtime:{镜像类型}-latest`
-  - 示例: `ghcr.io/ysicing/gitspace-runtime:vscode-latest`
-
-时间戳格式: `YYYYMMDD-HHMMSS`
-
----
-
-## 🔗 与 Gitness 集成
-
-### 项目位置
-
-此 Runtime 已集成到 Gitness 项目中: `hack/gitspace-runtime/`
-
-### 使用 Taskfile
-
-```bash
-# 查看所有可用任务
-task --list
-
-# 构建和测试
-task build-all          # 构建所有镜像
-task test-all           # 测试所有镜像
-task push-all           # 推送到仓库
-
-# 多平台支持（amd64 + arm64）
-task buildx-all         # 构建并推送多平台镜像
-
-# 版本管理
-VERSION=1.0.0 task tag
-VERSION=1.0.0 task release
-
-# 开发调试
-task shell-vscode       # 进入镜像 shell
-task inspect-vscode     # 检查镜像信息
-task clean              # 清理镜像
-task prune              # 清理缓存
-```
-
-### Gitness 配置
-
-启用预装镜像以获得最佳性能:
-
-```bash
-# 在 Gitness 配置文件或环境变量中
-GITSPACE_PREBUILT_IMAGES_ENABLED=true
-GITSPACE_PREBUILT_IMAGES_REGISTRY=ghcr.io/ysicing/gitspace-runtime
-GITSPACE_PREBUILT_IMAGE_VSCODE=vscode-latest
-```
-
-### 核心优势
-
-- ✅ **预装 IDE** - code-server 已内置,无需下载
-- ✅ **快速启动** - 从 3-5 分钟降至 30-60 秒 (5-10倍提升)
-- ✅ **离线可用** - 不依赖外网
-- ✅ **脚本复用** - 使用 Docker Gitspace 相同脚本
-- ✅ **持久化一致** - 挂载到 HOME 目录,与 Docker 完全对齐
-
-### 详细文档
-
-完整文档位于 `docs/` 目录:
-
-- [使用指南](docs/usage-guide.md) - **快速开始和常见场景** 📖
-- [架构设计](docs/architecture.md) - 架构设计和技术实现
-- [Gitness 集成](docs/gitness-integration-plan.md) - Gitness 集成方案
-
----
-
-**维护者**: Gitness Team, @ysicing
-**更新时间**: 2025-11-06
-**版本**: v1.0
+目前 Kubernetes 使用预装 IDE 镜像，devcontainer 的自定义镜像、Features 以及其他生命周期阶段不在本次支持范围内。

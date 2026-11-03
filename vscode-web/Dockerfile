@@ -9,7 +9,8 @@
 # Gitspace VSCode 专用镜像
 # 基于 base 镜像，添加 VSCode Server 支持
 
-FROM ghcr.io/ysicing/gitspace-runtime:base-latest
+ARG BASE_IMAGE=ghcr.io/ysicing/gitspace-runtime:base-latest
+FROM ${BASE_IMAGE}
 
 ARG VSCODE_EXTENSIONS=""
 

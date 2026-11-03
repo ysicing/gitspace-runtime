@@ -27,9 +27,13 @@ run_as_root() {
 # 主函数
 # ========================================
 main() {
+    if [ -z "${GITSPACE_ACCESS_KEY:-}" ]; then
+        log_error "GITSPACE_ACCESS_KEY is required for VSCode Web authentication"
+        return 1
+    fi
     log_info "=========================================="
     log_info "Gitspace VSCode Web Initialization Started"
-    log_info "Gitspace ID: $GITSPACE_IDENTIFIER"
+    log_info "Gitspace ID: ${GITSPACE_IDENTIFIER:-gitspace}"
     log_info "=========================================="
 
     # 第0步：确保 HOME 目录权限正确
@@ -50,7 +54,7 @@ main() {
             # 安全检查：确保不是符号链接
             if [ ! -L "$HOME_DIR" ]; then
                 log_info "Fixing ownership of $HOME_DIR (current: ${current_uid:-unknown}:${current_gid:-unknown}, expected: $desired_uid:$desired_gid)"
-                run_as_root chown -R vscode:vscode "$HOME_DIR"
+                run_as_root chown vscode:vscode "$HOME_DIR"
                 log_info "HOME directory permissions set correctly"
             else
                 log_error "$HOME_DIR is a symbolic link, skipping chown for safety"
@@ -78,6 +82,9 @@ main() {
     source /usr/local/gitspace/scripts/common/clone-repository.sh
     clone_repository
 
+    source /usr/local/gitspace/scripts/common/run-lifecycle.sh
+    run_gitspace_lifecycle
+
     # 第3步：启动 code-server
     log_info "Step 3/3: Starting code-server..."
     start_code_server
@@ -87,6 +94,10 @@ main() {
 # 启动 code-server
 # ========================================
 start_code_server() {
+    if [ -z "${GITSPACE_ACCESS_KEY:-}" ]; then
+        log_error "GITSPACE_ACCESS_KEY is required for VSCode Web authentication"
+        return 1
+    fi
     log_info "Starting VSCode Server..."
     log_info "HOME: $HOME_DIR"
     log_info "Repository: $REPO_DIR"
@@ -102,15 +113,17 @@ start_code_server() {
     fi
 
     # 配置目录
-    config_dir="$HOME_DIR/.config/code-server"
+    local config_dir="$HOME_DIR/.config/code-server"
     mkdir -p "$config_dir"
 
     # 创建配置文件
-    cat > "$config_dir/config.yaml" <<CONFIG_EOF
+    (umask 077; cat > "$config_dir/config.yaml" <<CONFIG_EOF
 bind-addr: 0.0.0.0:$IDE_PORT
-auth: none
+auth: password
 cert: false
 CONFIG_EOF
+    )
+    chmod 600 "$config_dir/config.yaml"
 
     log_success "=========================================="
     log_success "Gitspace VSCode Web Initialization Completed"
@@ -118,8 +131,12 @@ CONFIG_EOF
     log_success "=========================================="
 
     # 启动 code-server（作为主进程）
-    exec code-server --disable-workspace-trust "$(pwd)"
+    unset HASHED_PASSWORD
+    export PASSWORD="$GITSPACE_ACCESS_KEY"
+    exec code-server --config "$config_dir/config.yaml" --disable-workspace-trust "$(pwd)"
 }
 
 # 执行主函数
-main
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main
+fi

@@ -20,10 +20,6 @@ clone_repository() {
     # 确保目录存在
     mkdir -p "$workspace_dir"
 
-    # 修复权限
-    current_user=$(id -u)
-    current_group=$(id -g)
-    sudo chown -R "$current_user:$current_group" "$workspace_dir" 2>/dev/null || true
     # 打印最新 commit SHA（与 Docker 实现对齐）
     log_info "Fetching latest commit SHA from remote..."
     local latest_commit
@@ -59,6 +55,12 @@ clone_repository() {
         done
     else
         log_info "Repository already exists at $repo_dir, skipping clone"
+        if git -C "$repo_dir" remote get-url origin >/dev/null 2>&1; then
+            git -C "$repo_dir" remote set-url origin "$repo_url"
+        else
+            git -C "$repo_dir" remote add origin "$repo_url"
+        fi
+        log_info "Repository origin updated with current credentials"
     fi
 
     # 进入仓库目录
