@@ -119,6 +119,8 @@ Web 必须提供非空访问密钥，code-server 开启密码认证。密码通�
 
 SSH Host Key 在首次启动时生成，保存在 PVC 的 `$HOME/.gitspace/ssh-host-keys` 中，重启复用。升级旧环境后首次连接会看到新的 SSH 主机指纹，应核实后更新客户端 known_hosts。
 
+SSH 初始化会移除 HOME 目录本身的组和其他用户写权限，避免已有 PVC 的宽松权限导致 OpenSSH StrictModes 拒绝公钥认证；保留其他权限，不递归修改项目文件或子目录，也不关闭 StrictModes。
+
 已有仓库在重启时仅更新 origin，以同步新的仓库凭证；保留当前分支、未提交修改和未跟踪文件，不自动 pull/reset。每次启动不再递归 chown 整个 HOME；旧数据内部若已有错误权限，应单独修复。
 
 Gitness 传递 devcontainer 普通容器环境变量，重复项以最后一项为准；仓库、访问凭证、端口、HOME 和 `GITSPACE_*` 内部变量由平台控制。postCreateCommand 在仓库中首次成功后记录完成标记，失败可重试；postStartCommand 每次启动执行。支持字符串、参数数组和并行对象形式，任一命令失败都会阻止 IDE 启动。完成标记位于 Git 目录的 `gitspace-post-create-complete`。

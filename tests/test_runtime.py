@@ -203,6 +203,31 @@ class RuntimeTest(unittest.TestCase):
         )
         self.assertEqual((gateway / "keep").read_text(), "preserved")
 
+    def test_ssh_secures_home_without_changing_project_permissions(self):
+        project = self.home / "project"
+        project.mkdir()
+        project.chmod(0o775)
+        document = project / "keep.txt"
+        document.write_text("local changes\n")
+        document.chmod(0o664)
+        for initial, expected in ((0o777, 0o755), (0o770, 0o750), (0o700, 0o700), (0o750, 0o750)):
+            with self.subTest(initial=oct(initial)):
+                self.home.chmod(initial)
+                for _ in range(2):
+                    self.shell(
+                        self.ssh_script(),
+                        GITSPACE_ACCESS_TYPE="combined",
+                        GITSPACE_ACCESS_KEY="test-password",
+                        SSH_PUBLIC_KEY="ssh-ed25519 test-public-key",
+                        SSH_PORT="8088",
+                    )
+                    self.assertEqual(self.home.stat().st_mode & 0o777, expected)
+                    self.assertEqual((self.home / ".ssh").stat().st_mode & 0o777, 0o700)
+                    self.assertEqual((self.home / ".ssh/authorized_keys").stat().st_mode & 0o777, 0o600)
+                    self.assertEqual(project.stat().st_mode & 0o777, 0o775)
+                    self.assertEqual(document.stat().st_mode & 0o777, 0o664)
+                    self.assertEqual(document.read_text(), "local changes\n")
+
     def test_ssh_key_mode_disables_password_authentication(self):
         self.shell(
             self.ssh_script(),

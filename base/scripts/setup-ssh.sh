@@ -24,6 +24,7 @@ configure_ssh_server() {
         return 1
     fi
 
+    chmod go-w "$HOME_DIR"
     mkdir -p "$HOME_DIR/.ssh"
     chmod 700 "$HOME_DIR/.ssh"
     printf '%s\n' "${SSH_PUBLIC_KEY:-}" > "$HOME_DIR/.ssh/authorized_keys"
