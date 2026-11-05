@@ -36,7 +36,9 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check scripts and contracts
-        run: task test
+        run: |
+          npm install --prefix "$RUNNER_TEMP/runtime-test-deps" --no-package-lock --no-save js-yaml@latest
+          NODE_PATH="$RUNNER_TEMP/runtime-test-deps/node_modules" task test
 
   base:
     name: Build Base Image

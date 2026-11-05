@@ -116,14 +116,8 @@ start_code_server() {
     local config_dir="$HOME_DIR/.config/code-server"
     mkdir -p "$config_dir"
 
-    # 创建配置文件
-    (umask 077; cat > "$config_dir/config.yaml" <<CONFIG_EOF
-bind-addr: 0.0.0.0:$IDE_PORT
-auth: password
-cert: false
-CONFIG_EOF
-    )
-    chmod 600 "$config_dir/config.yaml"
+    node "${GITSPACE_SCRIPTS_DIR:-/usr/local/gitspace/scripts}/vscode/prepare-config.cjs" \
+        "$(command -v code-server)" "$HOME_DIR" "$IDE_PORT"
 
     log_success "=========================================="
     log_success "Gitspace VSCode Web Initialization Completed"
@@ -133,7 +127,7 @@ CONFIG_EOF
     # 启动 code-server（作为主进程）
     unset HASHED_PASSWORD
     export PASSWORD="$GITSPACE_ACCESS_KEY"
-    exec code-server --config "$config_dir/config.yaml" --disable-workspace-trust "$(pwd)"
+    exec code-server --config "$config_dir/.gitspace-runtime.yaml" --disable-workspace-trust "$(pwd)"
 }
 
 # 执行主函数

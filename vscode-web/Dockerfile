@@ -40,6 +40,7 @@ RUN echo "Installing latest code-server..." \
 
 # 复制 VSCode Web 专用脚本
 COPY vscode-web/scripts/*.sh /usr/local/gitspace/scripts/vscode/
+COPY vscode-web/scripts/*.py vscode-web/scripts/*.cjs /usr/local/gitspace/scripts/vscode/
 RUN chmod +x /usr/local/gitspace/scripts/vscode/*.sh
 
 # 复制脚本到系统路径

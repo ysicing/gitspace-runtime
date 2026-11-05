@@ -8,6 +8,9 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+YAML_MODULES = Path(subprocess.check_output(
+    ["node", "-p", "require.resolve('js-yaml/package.json')"], cwd=ROOT, text=True,
+).strip()).parent.parent
 
 
 class RuntimeTest(unittest.TestCase):
@@ -17,6 +20,12 @@ class RuntimeTest(unittest.TestCase):
         self.home = Path(self.directory.name)
         self.bin = self.home / "bin"
         self.bin.mkdir()
+        self.temporary = self.home / "container-tmp"
+        self.temporary.mkdir()
+        scripts = self.home / "scripts"
+        scripts.mkdir()
+        (scripts / "vscode").symlink_to(ROOT / "vscode-web/scripts", target_is_directory=True)
+        (scripts / "jetbrains").symlink_to(ROOT / "jetbrains/scripts", target_is_directory=True)
         self.env = {
             **os.environ,
             "HOME": str(self.home),
@@ -26,6 +35,9 @@ class RuntimeTest(unittest.TestCase):
             "PATH": f"{self.bin}:{os.environ['PATH']}",
             "REPO_NAME": "project",
             "BRANCH": "main",
+            "TMPDIR": str(self.temporary),
+            "GITSPACE_SCRIPTS_DIR": str(scripts),
+            "NODE_PATH": str(YAML_MODULES),
         }
         self.real_git = shutil.which("git")
         self.write_command(
@@ -112,6 +124,117 @@ class RuntimeTest(unittest.TestCase):
         self.assertEqual((self.home / "server-password").read_text(), password)
         self.assertIn("--config", (self.home / "server-args").read_text())
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+
+    def test_web_preserves_user_config_and_enforces_managed_settings(self):
+        config = self.home / ".config/code-server/config.yaml"
+        config.parent.mkdir(parents=True)
+        original = (
+            "# keep my configuration\n"
+            "locale: zh-cn\n"
+            "disable-telemetry: true\n"
+            "auth: none\n"
+            "hashed-password: obsolete-hash\n"
+            "password: obsolete-password\n"
+            "socket: /tmp/old.sock\n"
+            "user-data-dir: /tmp/old-data\n"
+        )
+        config.write_text(original)
+        self.write_command(
+            "code-server",
+            'printf "%s\\n" "$@" > "$HOME/server-args"\n',
+        )
+        for port in ("8089", "9090"):
+            result = self.shell(
+                f'source "{ROOT}/vscode-web/gitspace-run.sh"\nstart_code_server',
+                REPO_NAME="",
+                GITSPACE_ACCESS_KEY="current-secret",
+                IDE_PORT=port,
+            )
+            self.assertEqual(config.read_text(), original)
+            args = (self.home / "server-args").read_text().splitlines()
+            runtime_config = Path(args[args.index("--config") + 1])
+            contents = runtime_config.read_text()
+            self.assertIn("locale: zh-cn", contents)
+            self.assertIn("disable-telemetry: true", contents)
+            self.assertIn(f"bind-addr: 0.0.0.0:{port}", contents)
+            self.assertIn("auth: password", contents)
+            self.assertIn(str(self.home / ".local/share/code-server"), contents)
+            for removed in ("obsolete-hash", "obsolete-password", "/tmp/old.sock", "/tmp/old-data", "current-secret"):
+                self.assertNotIn(removed, contents)
+            self.assertNotIn("current-secret", result.stdout + result.stderr)
+            self.assertEqual(runtime_config.stat().st_mode & 0o777, 0o600)
+
+    def test_web_invalid_config_blocks_start_without_rewriting_it(self):
+        config = self.home / ".config/code-server/config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("invalid: [")
+        self.write_command("code-server", 'touch "$HOME/server-started"\n')
+        self.shell(
+            f'source "{ROOT}/vscode-web/gitspace-run.sh"\nstart_code_server',
+            success=False,
+            GITSPACE_ACCESS_KEY="current-secret",
+        )
+        self.assertEqual(config.read_text(), "invalid: [")
+        self.assertFalse((self.home / "server-started").exists())
+
+    def seed_web_extensions(self, prebuilt, *, success=True):
+        self.write_command("sudo", 'case "$1" in chown) ;; *) "$@" ;; esac\n')
+        return self.shell(
+            f'bash "{ROOT}/vscode-web/gitspace-init.sh" "{prebuilt}"',
+            success=success,
+        )
+
+    def test_web_cache_adds_missing_versions_after_prior_migration(self):
+        prebuilt = self.home / "prebuilt"
+        source = prebuilt / ".local/share/code-server/extensions"
+        target = self.home / ".local/share/code-server/extensions"
+        for name in ("example.extension-1", "example.extension-2", "removed.extension-1"):
+            (source / name).mkdir(parents=True)
+            (source / name / "package.json").write_text('{"cached":true}')
+        (source / "extensions.json").write_text('{"path":"/opt/prebuilt"}')
+        (target / "example.extension-1").mkdir(parents=True)
+        existing = target / "example.extension-1/package.json"
+        existing.write_text('{"user":"preserved"}')
+        existing.chmod(0o600)
+        (target / ".obsolete").write_text('{"removed.extension-1":true}')
+        config = self.home / ".config/code-server/config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("locale: zh-cn\n")
+        (self.home / ".gitspace-migrated").write_text("done")
+        for _ in range(2):
+            self.seed_web_extensions(prebuilt)
+            self.assertEqual(existing.read_text(), '{"user":"preserved"}')
+            self.assertEqual(existing.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(config.read_text(), "locale: zh-cn\n")
+            self.assertTrue((target / "example.extension-2/package.json").exists())
+            self.assertFalse((target / "extensions.json").exists())
+            self.assertFalse((target / "removed.extension-1").exists())
+        (source / "example.extension-3").mkdir()
+        (source / "example.extension-3/package.json").write_text("{}")
+        self.seed_web_extensions(prebuilt)
+        self.assertTrue((target / "example.extension-3/package.json").exists())
+
+    def test_web_cache_rejects_symlink_target_without_touching_external_data(self):
+        prebuilt = self.home / "prebuilt"
+        (prebuilt / ".local/share/code-server/extensions/example.extension-1").mkdir(parents=True)
+        external = self.home / "external"
+        external.mkdir()
+        (self.home / ".local").symlink_to(external, target_is_directory=True)
+        self.seed_web_extensions(prebuilt, success=False)
+        self.assertEqual(list(external.iterdir()), [])
+
+    def test_web_cache_failed_copy_does_not_publish_partial_extension(self):
+        prebuilt = self.home / "prebuilt"
+        extension = prebuilt / ".local/share/code-server/extensions/example.extension-1"
+        extension.mkdir(parents=True)
+        (extension / "package.json").write_text("{}")
+        os.mkfifo(extension / "unsupported")
+        target = self.home / ".local/share/code-server/extensions"
+        self.seed_web_extensions(prebuilt, success=False)
+        self.assertEqual(list(target.iterdir()), [])
+        (extension / "unsupported").unlink()
+        self.seed_web_extensions(prebuilt)
+        self.assertEqual((target / "example.extension-1/package.json").read_text(), "{}")
 
     def ssh_script(self):
         return (
@@ -203,6 +326,40 @@ class RuntimeTest(unittest.TestCase):
         )
         self.assertEqual((gateway / "keep").read_text(), "preserved")
 
+    def test_jetbrains_installs_plugins_with_selected_ide_and_preserves_state(self):
+        ide = self.home / "selected-ide"
+        (ide / "bin").mkdir(parents=True)
+        server = ide / "bin/remote-dev-server.sh"
+        server.write_text(
+            '#!/bin/bash\nprintf "%s\\n" "$@" > "$HOME/plugin-args"\n'
+            'mkdir -p "$HOME/.local/share/JetBrains/plugins"\n'
+            'touch "$HOME/.local/share/JetBrains/plugins/installed"\n'
+        )
+        server.chmod(0o755)
+        settings = self.home / ".config/JetBrains/settings"
+        settings.parent.mkdir(parents=True)
+        settings.write_text("preserve")
+        for _ in range(2):
+            self.shell(
+                f'source "{ROOT}/jetbrains/gitspace-run.sh"\n'
+                'RESOLVED_IDE_PATH="$JETBRAINS_IDE_DIR"\ninstall_jetbrains_plugins',
+                JETBRAINS_IDE_DIR=str(ide),
+                JETBRAINS_PLUGINS="first.plugin, second.plugin third.plugin",
+            )
+            self.assertEqual(
+                (self.home / "plugin-args").read_text().splitlines(),
+                ["installPlugins", "first.plugin", "second.plugin", "third.plugin"],
+            )
+            self.assertEqual(settings.read_text(), "preserve")
+        server.write_text("#!/bin/bash\nexit 7\n")
+        self.shell(
+            f'source "{ROOT}/jetbrains/gitspace-run.sh"\n'
+            'RESOLVED_IDE_PATH="$JETBRAINS_IDE_DIR"\ninstall_jetbrains_plugins',
+            success=False,
+            JETBRAINS_IDE_DIR=str(ide),
+            JETBRAINS_PLUGINS="first.plugin",
+        )
+
     def test_ssh_secures_home_without_changing_project_permissions(self):
         project = self.home / "project"
         project.mkdir()
@@ -281,6 +438,27 @@ class RuntimeTest(unittest.TestCase):
         )
         self.assertTrue((self.home / "project/retried").exists())
         self.assertTrue((self.home / "project/started").exists())
+
+    def test_post_create_reruns_after_container_layer_is_replaced(self):
+        repository = self.repository()
+        (repository / ".git/gitspace-post-create-complete").touch()
+        script = (
+            f'source "{ROOT}/base/scripts/run-lifecycle.sh"\n'
+            'REPO_DIR="$HOME/project"\nrun_gitspace_lifecycle'
+        )
+        environment = {
+            "GITSPACE_POST_CREATE_COMMAND": json.dumps(
+                'echo installed >> "$HOME/create-runs"; touch "$TMPDIR/system-tool"'
+            ),
+        }
+        self.shell(script, **environment)
+        self.shell(script, **environment)
+        self.assertEqual((self.home / "create-runs").read_text().splitlines(), ["installed"])
+        shutil.rmtree(self.temporary)
+        self.temporary.mkdir()
+        self.shell(script, **environment)
+        self.assertTrue((self.temporary / "system-tool").exists())
+        self.assertEqual((self.home / "create-runs").read_text().splitlines(), ["installed", "installed"])
 
     def test_lifecycle_parallel_failure_waits_and_blocks_start(self):
         self.repository()

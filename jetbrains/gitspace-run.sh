@@ -51,10 +51,8 @@ install_jetbrains_plugins() {
     if [ -z "$JETBRAINS_PLUGINS" ]; then
         return
     fi
-    local script="/usr/local/gitspace/scripts/jetbrains/setup-jetbrains-plugins.sh"
-    export IDE_PATH="$RESOLVED_IDE_PATH"
-    export JETBRAINS_PLUGINS
-    "$script"
+    local script="${GITSPACE_SCRIPTS_DIR:-/usr/local/gitspace/scripts}/jetbrains/install-plugins.sh"
+    JETBRAINS_IDE_DIR="$RESOLVED_IDE_PATH" JETBRAINS_PLUGINS="$JETBRAINS_PLUGINS" bash "$script"
 }
 
 start_remote_dev_server() {

@@ -43,13 +43,23 @@ run_lifecycle_command() {
 
 run_gitspace_lifecycle() (
     cd "$REPO_DIR" || return 1
-    local create_marker
-    create_marker=$(git rev-parse --git-path gitspace-post-create-complete) || return 1
+    if [ -n "${GITSPACE_POST_CREATE_COMMAND:-}" ]; then
+        local marker_dir="${TMPDIR:-/tmp}/gitspace-lifecycle-$UID"
+        local repository_key create_marker
+        if [ -L "$marker_dir" ] || { [ -e "$marker_dir" ] && [ ! -O "$marker_dir" ]; }; then
+            printf '[ERROR] Unsafe lifecycle marker directory\n' >&2
+            return 1
+        fi
+        mkdir -p "$marker_dir" || return 1
+        chmod 700 "$marker_dir" || return 1
+        repository_key=$(pwd -P | git hash-object --stdin) || return 1
+        create_marker="$marker_dir/$repository_key"
 
-    # 仅成功完成后记录，失败重启仍可重试；标记随仓库而非整个 HOME 保存。
-    if [ -n "${GITSPACE_POST_CREATE_COMMAND:-}" ] && [ ! -f "$create_marker" ]; then
-        run_lifecycle_command "$GITSPACE_POST_CREATE_COMMAND" || return 1
-        touch "$create_marker" || return 1
+        # 标记随容器临时层失效，重建后重新安装系统依赖；同一容器只执行一次。
+        if [ ! -f "$create_marker" ]; then
+            run_lifecycle_command "$GITSPACE_POST_CREATE_COMMAND" || return 1
+            touch "$create_marker" || return 1
+        fi
     fi
     if [ -n "${GITSPACE_POST_START_COMMAND:-}" ]; then
         run_lifecycle_command "$GITSPACE_POST_START_COMMAND" || return 1

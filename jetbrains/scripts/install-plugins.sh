@@ -23,7 +23,7 @@ install_jetbrains_plugins() {
 
     local remote_dev_server="$ide_dir/bin/remote-dev-server.sh"
 
-    if [ ! -f "$remote_dev_server" ]; then
+    if [ ! -x "$remote_dev_server" ]; then
         log_error "remote-dev-server.sh not found"
         return 1
     fi
@@ -34,47 +34,16 @@ install_jetbrains_plugins() {
     # 插件安装日志
     local log_file="$HOME/jetbrains-plugin-install.log"
 
-    # 安装插件
-    if "$remote_dev_server" installPlugins $plugins > "$log_file" 2>&1; then
+    local plugin_arguments=()
+    read -r -a plugin_arguments <<< "${plugins//,/ }"
+    if [ "${#plugin_arguments[@]}" -eq 0 ]; then
+        return 0
+    fi
+    if "$remote_dev_server" installPlugins "${plugin_arguments[@]}" > "$log_file" 2>&1; then
         log_info "Plugin installation command completed"
     else
         log_error "Plugin installation command failed"
         cat "$log_file"
-        return 1
-    fi
-
-    # 解析安装结果
-    local installed_count=0
-    local failed_count=0
-
-    # 将逗号分隔的插件列表转换为数组
-    IFS=',' read -ra PLUGIN_ARRAY <<< "$plugins"
-
-    for plugin in "${PLUGIN_ARRAY[@]}"; do
-        # 去除首尾空格
-        plugin=$(echo "$plugin" | xargs)
-
-        if [ -z "$plugin" ]; then
-            continue
-        fi
-
-        # 检查插件状态
-        if grep -q "already installed: $plugin" "$log_file"; then
-            log_info "✓ $plugin: already installed"
-            installed_count=$((installed_count + 1))
-        elif grep -q "installed plugin: PluginNode{id=$plugin" "$log_file"; then
-            log_info "✓ $plugin: installed successfully"
-            installed_count=$((installed_count + 1))
-        else
-            log_error "✗ $plugin: installation failed"
-            failed_count=$((failed_count + 1))
-        fi
-    done
-
-    log_info "Plugin installation summary: $installed_count succeeded, $failed_count failed"
-
-    if [ $failed_count -gt 0 ]; then
-        log_error "Some plugins failed to install. Check log: $log_file"
         return 1
     fi
 
