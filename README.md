@@ -35,7 +35,7 @@ Desktop VSCode、Cursor 和 Windsurf 的远端 Server 由对应客户端安装�
 
 - 基础系统使用 `mcr.microsoft.com/devcontainers/base:ubuntu`，apt 安装发行版仓库中的最新软件包。
 - Node.js 使用 NodeSource 的 `setup_lts.x`，自动跟随最新 LTS。
-- Claude Code、Codex CLI、Gemini CLI 使用 npm 的 `@latest`。
+- 默认只安装 Claude Code 和 Codex CLI，使用 npm 的 `@latest`。
 - code-server 使用官方安装脚本获取最新稳定版。
 - JetBrains 使用各产品的 `latest` 下载入口，IntelliJ IDEA / PyCharm 使用统一发行版产品代码 `IIU` / `PCP`。
 

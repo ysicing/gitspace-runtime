@@ -63,10 +63,8 @@ RUN curl -fsSL --retry 3 https://deb.nodesource.com/setup_lts.x -o /tmp/setup-no
 RUN npm install -g --prefer-online \
     @anthropic-ai/claude-code@latest \
     @openai/codex@latest \
-    @google/gemini-cli@latest \
     && claude --version \
     && codex --version \
-    && gemini --version \
     && npm cache clean --force
 
 # 创建 vscode 用户（UID/GID: 1000，与 Docker 实现对齐）

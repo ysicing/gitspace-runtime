@@ -23,7 +23,7 @@ class BuildTest(unittest.TestCase):
             "PATH": f"{self.bin}:{os.environ['PATH']}",
             "COMMAND_LOG": str(self.command_log),
         }
-        for name in ("docker", "npm", "claude", "codex", "gemini"):
+        for name in ("docker", "npm", "claude", "codex"):
             command = self.bin / name
             command.write_text(
                 "#!/usr/bin/env python3\n"
@@ -74,8 +74,10 @@ class BuildTest(unittest.TestCase):
                 "npm", "install", "-g", "--prefer-online",
                 "@anthropic-ai/claude-code@latest",
                 "@openai/codex@latest",
-                "@google/gemini-cli@latest",
             ],
+        )
+        self.assertEqual(
+            [command[0] for command in self.commands()], ["npm", "claude", "codex", "npm"]
         )
         self.assertEqual(self.commands()[-1], ["npm", "cache", "clean", "--force"])
 
