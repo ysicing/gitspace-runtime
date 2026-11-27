@@ -1,3 +1,4 @@
+# 历史镜像部署示例，仅适用于旧版本。当前支持的镜像见 ../README.md。
 apiVersion: v1
 kind: Namespace
 metadata:

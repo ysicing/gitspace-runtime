@@ -5,15 +5,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 scripts=(
+    build-all.sh
     base/scripts/clone-repository.sh
     base/scripts/setup-ssh.sh
     base/scripts/run-lifecycle.sh
     vscode/gitspace-run.sh
     vscode-web/gitspace-run.sh
     vscode-web/gitspace-init.sh
-    cursor/gitspace-run.sh
-    jetbrains/gitspace-run.sh
-    jetbrains/scripts/install-plugins.sh
 )
 for script in "${scripts[@]}"; do
     bash -n "$script"

@@ -25,7 +25,6 @@ class RuntimeTest(unittest.TestCase):
         scripts = self.home / "scripts"
         scripts.mkdir()
         (scripts / "vscode").symlink_to(ROOT / "vscode-web/scripts", target_is_directory=True)
-        (scripts / "jetbrains").symlink_to(ROOT / "jetbrains/scripts", target_is_directory=True)
         self.env = {
             **os.environ,
             "HOME": str(self.home),
@@ -284,82 +283,6 @@ class RuntimeTest(unittest.TestCase):
         self.assertIn("PermitEmptyPasswords no", config)
         self.assertIn("PubkeyAuthentication no", config)
 
-    def test_jetbrains_gateway_path_points_at_selected_ide(self):
-        ide = self.home / "preinstalled"
-        (ide / "bin").mkdir(parents=True)
-        (ide / "bin/remote-dev-server.sh").touch()
-        self.shell(
-            f'source "{ROOT}/jetbrains/gitspace-run.sh"\nresolve_ide_path',
-            JETBRAINS_IDE_DIR=str(ide),
-            IDE_TYPE="goland",
-        )
-        gateway = self.home / ".cache/JetBrains/RemoteDev/dist/goland"
-        self.assertEqual(gateway.resolve(), ide.resolve())
-        replacement = self.home / "replacement"
-        (replacement / "bin").mkdir(parents=True)
-        (replacement / "bin/remote-dev-server.sh").touch()
-        self.shell(
-            f'source "{ROOT}/jetbrains/gitspace-run.sh"\nresolve_ide_path',
-            JETBRAINS_IDE_DIR=str(replacement),
-            IDE_TYPE="goland",
-        )
-        self.assertEqual(gateway.resolve(), replacement.resolve())
-        self.shell(
-            f'source "{ROOT}/jetbrains/gitspace-run.sh"\nresolve_ide_path',
-            JETBRAINS_IDE_DIR=str(gateway),
-            IDE_TYPE="goland",
-        )
-        self.assertEqual(gateway.resolve(), replacement.resolve())
-
-    def test_jetbrains_keeps_existing_gateway_directory(self):
-        ide = self.home / "preinstalled"
-        (ide / "bin").mkdir(parents=True)
-        (ide / "bin/remote-dev-server.sh").touch()
-        gateway = self.home / ".cache/JetBrains/RemoteDev/dist/goland"
-        gateway.mkdir(parents=True)
-        (gateway / "keep").write_text("preserved")
-        self.shell(
-            f'source "{ROOT}/jetbrains/gitspace-run.sh"\nresolve_ide_path',
-            success=False,
-            JETBRAINS_IDE_DIR=str(ide),
-            IDE_TYPE="goland",
-        )
-        self.assertEqual((gateway / "keep").read_text(), "preserved")
-
-    def test_jetbrains_installs_plugins_with_selected_ide_and_preserves_state(self):
-        ide = self.home / "selected-ide"
-        (ide / "bin").mkdir(parents=True)
-        server = ide / "bin/remote-dev-server.sh"
-        server.write_text(
-            '#!/bin/bash\nprintf "%s\\n" "$@" > "$HOME/plugin-args"\n'
-            'mkdir -p "$HOME/.local/share/JetBrains/plugins"\n'
-            'touch "$HOME/.local/share/JetBrains/plugins/installed"\n'
-        )
-        server.chmod(0o755)
-        settings = self.home / ".config/JetBrains/settings"
-        settings.parent.mkdir(parents=True)
-        settings.write_text("preserve")
-        for _ in range(2):
-            self.shell(
-                f'source "{ROOT}/jetbrains/gitspace-run.sh"\n'
-                'RESOLVED_IDE_PATH="$JETBRAINS_IDE_DIR"\ninstall_jetbrains_plugins',
-                JETBRAINS_IDE_DIR=str(ide),
-                JETBRAINS_PLUGINS="first.plugin, second.plugin third.plugin",
-            )
-            self.assertEqual(
-                (self.home / "plugin-args").read_text().splitlines(),
-                ["installPlugins", "first.plugin", "second.plugin", "third.plugin"],
-            )
-            self.assertEqual(settings.read_text(), "preserve")
-        server.write_text("#!/bin/bash\nexit 7\n")
-        self.shell(
-            f'source "{ROOT}/jetbrains/gitspace-run.sh"\n'
-            'RESOLVED_IDE_PATH="$JETBRAINS_IDE_DIR"\ninstall_jetbrains_plugins',
-            success=False,
-            JETBRAINS_IDE_DIR=str(ide),
-            JETBRAINS_PLUGINS="first.plugin",
-        )
-
     def test_ssh_secures_home_without_changing_project_permissions(self):
         project = self.home / "project"
         project.mkdir()
@@ -513,7 +436,7 @@ class RuntimeTest(unittest.TestCase):
                 )
 
     def test_image_entrypoint_and_base_contract(self):
-        for name in ("vscode", "vscode-web", "cursor", "jetbrains"):
+        for name in ("vscode", "vscode-web"):
             with self.subTest(image=name):
                 dockerfile = (ROOT / name / "Dockerfile").read_text()
                 self.assertIn("ARG BASE_IMAGE=", dockerfile)

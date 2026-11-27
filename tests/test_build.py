@@ -101,7 +101,8 @@ class BuildTest(unittest.TestCase):
         result = self.build_all()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         commands = self.commands()
-        self.assertEqual(len(commands), 12)
+        expected_images = ["vscode", "vscode-web"]
+        self.assertEqual(len(commands), 1 + len(expected_images))
         self.assertEqual(commands[0][:3], ["docker", "buildx", "build"])
         self.assertIn("base/Dockerfile", commands[0])
         self.assertIn(
@@ -110,10 +111,6 @@ class BuildTest(unittest.TestCase):
         for command in commands:
             self.assertIn("--pull", command)
             self.assertIn("--no-cache", command)
-        expected_images = [
-            "vscode", "vscode-web", "cursor", "intellij", "goland",
-            "pycharm", "webstorm", "clion", "phpstorm", "rubymine", "rider",
-        ]
         for command, image in zip(commands[1:], expected_images):
             with self.subTest(image=image):
                 self.assertIn(
@@ -124,8 +121,6 @@ class BuildTest(unittest.TestCase):
                     f"registry.example.invalid/team/runtime:{image}-latest", command
                 )
                 self.assertFalse(any("IDE_VERSION=" in argument for argument in command))
-        self.assertIn("IDE_PRODUCT_CODE=IIU", commands[4])
-        self.assertIn("IDE_PRODUCT_CODE=PCP", commands[6])
 
     @unittest.skipUnless(shutil.which("task"), "Task is required to verify build commands")
     def test_failed_base_build_prevents_ide_builds(self):

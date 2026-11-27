@@ -17,7 +17,7 @@ cd "$(dirname "$0")"
 
 # 1. 构建基础镜像
 echo ""
-echo "[1/7] Building base image..."
+echo "[1/6] Building base image..."
 docker build \
     -t ${REGISTRY}/gitspace:base-${VERSION} \
     -f base/Dockerfile \
@@ -27,7 +27,7 @@ echo "✓ Base image built: ${REGISTRY}/gitspace:base-${VERSION}"
 
 # 2. 构建 VSCode 镜像
 echo ""
-echo "[2/7] Building VSCode image..."
+echo "[2/6] Building VSCode image..."
 docker build \
     --build-arg BASE_IMAGE=${REGISTRY}/gitspace:base-${VERSION} \
     -t ${REGISTRY}/gitspace:vscode-${VERSION} \
@@ -36,44 +36,33 @@ docker build \
 
 echo "✓ VSCode image built: ${REGISTRY}/gitspace:vscode-${VERSION}"
 
-# 3. 构建 JetBrains 镜像
+# 3. 构建 VSCode Web 镜像
 echo ""
-echo "[3/7] Building JetBrains image..."
+echo "[3/6] Building VSCode Web image..."
 docker build \
     --build-arg BASE_IMAGE=${REGISTRY}/gitspace:base-${VERSION} \
-    -t ${REGISTRY}/gitspace:jetbrains-${VERSION} \
-    -f jetbrains/Dockerfile \
+    -t ${REGISTRY}/gitspace:vscode-web-${VERSION} \
+    -f vscode-web/Dockerfile \
     .
 
-echo "✓ JetBrains image built: ${REGISTRY}/gitspace:jetbrains-${VERSION}"
+echo "✓ VSCode Web image built: ${REGISTRY}/gitspace:vscode-web-${VERSION}"
 
-# 4. 构建 Cursor 镜像
+# 4. 创建 latest 标签（指向 vscode）
 echo ""
-echo "[4/7] Building Cursor image..."
-docker build \
-    --build-arg VSCODE_IMAGE=${REGISTRY}/gitspace:vscode-${VERSION} \
-    -t ${REGISTRY}/gitspace:cursor-${VERSION} \
-    -f cursor/Dockerfile \
-    .
-
-echo "✓ Cursor image built: ${REGISTRY}/gitspace:cursor-${VERSION}"
-
-# 5. 创建 latest 标签（指向 vscode）
-echo ""
-echo "[5/7] Tagging vscode image as latest..."
+echo "[4/6] Tagging vscode image as latest..."
 docker tag ${REGISTRY}/gitspace:vscode-${VERSION} ${REGISTRY}/gitspace:latest
 
 echo "✓ Tagged: ${REGISTRY}/gitspace:latest -> vscode-${VERSION}"
 
-# 6. 显示镜像列表
+# 5. 显示镜像列表
 echo ""
-echo "[6/7] Built images:"
+echo "[5/6] Built images:"
 echo "=========================================="
 docker images | grep "${REGISTRY}/gitspace" | grep "${VERSION}\|latest"
 
-# 7. 显示镜像大小
+# 6. 显示镜像大小
 echo ""
-echo "[7/7] Image sizes:"
+echo "[6/6] Image sizes:"
 echo "=========================================="
 docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | \
     grep "${REGISTRY}/gitspace" | \
@@ -87,17 +76,10 @@ echo ""
 echo "To push images:"
 echo "  docker push ${REGISTRY}/gitspace:base-${VERSION}"
 echo "  docker push ${REGISTRY}/gitspace:vscode-${VERSION}"
-echo "  docker push ${REGISTRY}/gitspace:jetbrains-${VERSION}"
-echo "  docker push ${REGISTRY}/gitspace:cursor-${VERSION}"
+echo "  docker push ${REGISTRY}/gitspace:vscode-web-${VERSION}"
 echo "  docker push ${REGISTRY}/gitspace:latest"
 echo ""
 echo "To test images:"
 echo "  # VSCode"
 echo "  kubectl apply -f examples/gitspace-vscode.yaml"
-echo ""
-echo "  # JetBrains (IntelliJ)"
-echo "  kubectl apply -f examples/gitspace-jetbrains.yaml"
-echo ""
-echo "  # Cursor"
-echo "  kubectl apply -f examples/gitspace-cursor.yaml"
 echo ""

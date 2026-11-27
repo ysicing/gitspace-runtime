@@ -1,5 +1,7 @@
 # JetBrains 镜像构建指南
 
+> 历史版本构建指南。JetBrains 镜像已退出后续发布，当前支持范围见 [README](../README.md)。
+
 ## 概述
 
 通过统一的 Dockerfile 和构建参数，可以构建出所有 JetBrains IDE 的专用镜像。每个 IDE 使用独立的镜像，预安装对应的 IDE 产品。

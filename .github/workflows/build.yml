@@ -7,8 +7,6 @@ on:
       - 'base/**'
       - 'vscode/**'
       - 'vscode-web/**'
-      - 'cursor/**'
-      - 'jetbrains/**'
       - 'tests/**'
       - 'Taskfile.yml'
       - 'verify-consistency.sh'
@@ -83,15 +81,6 @@ jobs:
         image:
           - vscode
           - vscode-web
-          - cursor
-          - intellij
-          - goland
-          - pycharm
-          - webstorm
-          - clion
-          - phpstorm
-          - rubymine
-          - rider
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4

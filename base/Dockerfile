@@ -93,8 +93,6 @@ RUN mkdir -p /home/vscode/.config \
     /shared \
     /usr/local/gitspace/scripts/common \
     /usr/local/gitspace/scripts/vscode \
-    /usr/local/gitspace/scripts/cursor \
-    /usr/local/gitspace/scripts/jetbrains \
     && chown -R vscode:vscode /home/vscode /shared \
     && ln -s /home/vscode /workspaces
 

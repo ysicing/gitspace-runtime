@@ -1,5 +1,7 @@
 # Gitspace Runtime 架构设计与实现
 
+> 历史设计（2025 年）。当前版本仅发布 VS Code Desktop、VS Code Web 及其基础镜像。现行镜像标签、构建命令和启动契约见 [README](../README.md)。
+
 **版本**: v1.0
 **日期**: 2025-11-06
 

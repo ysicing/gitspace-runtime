@@ -4,32 +4,21 @@
 
 ## 镜像
 
-默认构建仓库为 `ghcr.io/ysicing/gitspace-runtime`。
+后续版本仅发布 VS Code Desktop、VS Code Web 及其共享基础镜像。默认构建仓库为 `ghcr.io/ysicing/gitspace-runtime`。
 
 | 标签 | 用途 | 默认端口 |
 | --- | --- | --- |
 | `base-latest` | 通用工具、Git、Node.js 和共享脚本 | — |
 | `vscode-latest` | VSCode Desktop，通过 Remote-SSH 连接 | 8088 |
 | `vscode-web-latest` | 浏览器 code-server | 8089 |
-| `cursor-latest` | Cursor / Windsurf，通过 Remote-SSH 连接 | 8098 / 8099 |
-| `intellij-latest` | IntelliJ IDEA，通过 JetBrains Gateway 连接 | 8090 |
-| `goland-latest` | GoLand | 8091 |
-| `pycharm-latest` | PyCharm | 8092 |
-| `webstorm-latest` | WebStorm | 8093 |
-| `clion-latest` | CLion | 8094 |
-| `phpstorm-latest` | PHPStorm | 8095 |
-| `rubymine-latest` | RubyMine | 8096 |
-| `rider-latest` | Rider | 8097 |
 
 Gitness 管理的 Gitspace 将 `$HOME` 挂载到工作区 PVC。Codex 和 Claude Code 的默认状态文件（包括认证与配置）位于 HOME 下，例如 `.codex/`、`.claude/` 和 `.claude.json`，因此容器或 Pod 重启后会保留。停止/重启 Gitspace 会复用 PVC；删除 Gitspace 时若选择同时删除用户数据，PVC 也会被删除，CLI 状态随之清除。最终耐久性取决于 Kubernetes 存储后端及其备份策略。
-
-JetBrains IDE 安装在 `/opt/jetbrains`。启动时为 Gitness Gateway 的固定路径 `$HOME/.cache/JetBrains/RemoteDev/dist/$IDE_TYPE` 建立链接；已有真实目录不会被覆盖。
 
 Web 镜像每次初始化都把镜像中的缺失扩展版本补充到 HOME，保留已有版本、用户配置及扩展删除记录；升级镜像后也会继续补齐。`~/.config/code-server/config.yaml` 保留原内容，启动时另生成仅服务使用的配置，统一监听地址、密码认证及 HOME 内的数据目录。平台访问密码仍通过环境变量传入。
 
 `postCreateCommand` 每个容器成功执行一次，容器重建后重新执行，`postStartCommand` 每次启动都执行。初始化命令应能处理 PVC 中已有的仓库和用户数据。系统依赖优先安装在镜像中，用户自行安装的工具应放在 HOME；手工安装到 `/usr/local`、`/opt` 等容器目录的内容不会随 PVC 保留。不要将 `TMPDIR` 指向 PVC，否则初始化标记也会持久化。
 
-Desktop VSCode、Cursor 和 Windsurf 的远端 Server 由对应客户端安装到 HOME 后随 PVC 保留；客户端升级仍可能安装新版本。本项目尚未预装这些客户端对应的 Server。
+VS Code Desktop 的远端 Server 由客户端安装到 HOME 后随 PVC 保留；客户端升级仍可能安装新版本。本项目尚未预装该 Server。
 
 ## 依赖更新
 
@@ -39,11 +28,8 @@ Desktop VSCode、Cursor 和 Windsurf 的远端 Server 由对应客户端安装�
 - Node.js 使用 NodeSource 的 `setup_lts.x`，自动跟随最新 LTS。
 - 默认只安装 Claude Code 和 Codex CLI，使用 npm 的 `@latest`。
 - code-server 使用官方安装脚本获取最新稳定版。
-- JetBrains 使用各产品的 `latest` 下载入口，IntelliJ IDEA / PyCharm 使用统一发行版产品代码 `IIU` / `PCP`。
 
 Taskfile 的所有镜像构建都带 `--pull --no-cache`，重新拉取基础镜像并执行安装，避免安装层缓存保留旧版本。构建时会输出实际安装版本，安装失败立即中止。重建会重新下载软件；已有容器中的工具通过重新构建、发布和更新容器完成升级。
-
-JetBrains 远程开发及专业功能仍受对应产品的授权条款限制。
 
 ## 本地验证
 
@@ -68,8 +54,6 @@ task --list
 task build-base
 task build-vscode-web
 task build-vscode
-task build-cursor
-task build-goland
 
 # 按顺序构建并推送全部镜像
 task build-all
@@ -82,7 +66,7 @@ task build-vscode-web REGISTRY=registry.example.com/team/gitspace-runtime
 task build-vscode-web VSCODE_EXTENSIONS=ms-python.python,golang.go
 ```
 
-base 同时发布 `base-latest`、`base-<构建时间>` 和 `base-<commit>` 标签，CI 使用完整 commit SHA。子 Dockerfile 和 Taskfile 均支持 `BASE_IMAGE`。默认目标平台是 `linux/amd64`；JetBrains 下载步骤目前使用 Linux x64 安装包，不应直接将它用于 ARM 构建。
+base 同时发布 `base-latest`、`base-<构建时间>` 和 `base-<commit>` 标签，CI 使用完整 commit SHA。子 Dockerfile 和 Taskfile 均支持 `BASE_IMAGE`。默认目标平台是 `linux/amd64`。
 
 仅在本机构建而不推送时，可直接使用 Docker：
 
@@ -102,11 +86,9 @@ Gitness 默认镜像仓库与本项目默认构建仓库不同，发布后需配
 ```bash
 GITNESS_KUBERNETES_GITSPACE_IMAGE_VSCODE=ghcr.io/ysicing/gitspace-runtime:vscode-latest
 GITNESS_KUBERNETES_GITSPACE_IMAGE_VSCODE_WEB=ghcr.io/ysicing/gitspace-runtime:vscode-web-latest
-GITNESS_KUBERNETES_GITSPACE_IMAGE_CURSOR=ghcr.io/ysicing/gitspace-runtime:cursor-latest
-GITNESS_KUBERNETES_GITSPACE_IMAGE_GOLAND=ghcr.io/ysicing/gitspace-runtime:goland-latest
 ```
 
-其余 JetBrains 产品使用对应的 `GITNESS_KUBERNETES_GITSPACE_IMAGE_<IDE>` 配置项。Gitness 为实际 IDE 端口配置 TCP startup/readiness 探针，启动探针允许约 10 分钟完成克隆和初始化；未监听端口前 Pod 不就绪。
+Gitness 为实际 IDE 端口配置 TCP startup/readiness 探针，启动探针允许约 10 分钟完成克隆和初始化；未监听端口前 Pod 不就绪。
 
 ## 启动契约
 
@@ -114,7 +96,7 @@ GITNESS_KUBERNETES_GITSPACE_IMAGE_GOLAND=ghcr.io/ysicing/gitspace-runtime:goland
 | --- | --- |
 | `HOME` / `WORKSPACE_DIR` | Gitness 统一设置为 `/home/vscode` |
 | `REPO_URL` / `REPO_NAME` / `BRANCH` | 克隆地址、HOME 下的仓库名和初次克隆分支 |
-| `IDE_TYPE` | Gitness IDE 标识，如 `vs_code`、`vs_code_web`、`goland` |
+| `IDE_TYPE` | Gitness IDE 标识，`vs_code` 或 `vs_code_web` |
 | `IDE_PORT` / `SSH_PORT` | Web / SSH 监听端口，由 Gitness 指定 |
 | `GITSPACE_ACCESS_KEY` | Web 登录密码；SSH 密码模式的用户密码 |
 | `GITSPACE_ACCESS_TYPE` | `user_credentials`、`ssh_key` 或 `combined` |
