@@ -21,6 +21,8 @@
 | `rubymine-latest` | RubyMine | 8096 |
 | `rider-latest` | Rider | 8097 |
 
+Gitness 管理的 Gitspace 将 `$HOME` 挂载到工作区 PVC。Codex 和 Claude Code 的默认状态文件（包括认证与配置）位于 HOME 下，例如 `.codex/`、`.claude/` 和 `.claude.json`，因此容器或 Pod 重启后会保留。停止/重启 Gitspace 会复用 PVC；删除 Gitspace 时若选择同时删除用户数据，PVC 也会被删除，CLI 状态随之清除。最终耐久性取决于 Kubernetes 存储后端及其备份策略。
+
 JetBrains IDE 安装在 `/opt/jetbrains`。启动时为 Gitness Gateway 的固定路径 `$HOME/.cache/JetBrains/RemoteDev/dist/$IDE_TYPE` 建立链接；已有真实目录不会被覆盖。
 
 Web 镜像每次初始化都把镜像中的缺失扩展版本补充到 HOME，保留已有版本、用户配置及扩展删除记录；升级镜像后也会继续补齐。`~/.config/code-server/config.yaml` 保留原内容，启动时另生成仅服务使用的配置，统一监听地址、密码认证及 HOME 内的数据目录。平台访问密码仍通过环境变量传入。

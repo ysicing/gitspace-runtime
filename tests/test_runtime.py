@@ -385,6 +385,31 @@ class RuntimeTest(unittest.TestCase):
                     self.assertEqual(document.stat().st_mode & 0o777, 0o664)
                     self.assertEqual(document.read_text(), "local changes\n")
 
+    def test_ssh_setup_preserves_codex_and_claude_state(self):
+        state_files = {
+            ".codex/auth.json": '{"tokens":"keep"}\n',
+            ".claude.json": '{"account":"keep"}\n',
+            ".claude/settings.json": '{"theme":"keep"}\n',
+        }
+        for relative_path, contents in state_files.items():
+            state_file = self.home / relative_path
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.write_text(contents)
+            state_file.chmod(0o600)
+
+        self.shell(
+            self.ssh_script(),
+            GITSPACE_ACCESS_TYPE="combined",
+            GITSPACE_ACCESS_KEY="test-password",
+            SSH_PUBLIC_KEY="ssh-ed25519 test-public-key",
+            SSH_PORT="8088",
+        )
+
+        for relative_path, contents in state_files.items():
+            state_file = self.home / relative_path
+            self.assertEqual(state_file.read_text(), contents)
+            self.assertEqual(state_file.stat().st_mode & 0o777, 0o600)
+
     def test_ssh_key_mode_disables_password_authentication(self):
         self.shell(
             self.ssh_script(),
